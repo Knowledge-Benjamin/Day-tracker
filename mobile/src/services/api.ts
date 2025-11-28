@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { store } from '../store';
 import { updateTokens, logout } from '../store/slices/authSlice';
+import { API_BASE_URL } from '@env';
 
-//const API_BASE_URL = 'http://localhost:5000/api';
-const API_BASE_URL = 'http://192.168.1.2:5000/api';
+// Use environment variable or fallback to localhost
 // Create axios instance
 export const api = axios.create({
     baseURL: API_BASE_URL,

@@ -5,7 +5,12 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 export PATH="$JAVA_HOME/bin:$PATH"
 
 echo "☕ Java environment configured."
-echo "📱 Checking for connected devices..."
+echo "🧹 Cleaning Android build..."
 
-# Run the app
+# Clean the Android build
+cd android
+./gradlew clean
+cd ..
+
+echo "📱 Building and installing app..."
 npx react-native run-android
