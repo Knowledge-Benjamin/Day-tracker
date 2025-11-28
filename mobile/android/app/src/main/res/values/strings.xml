@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DayTracker</string>
+    <string name="widget_description">Display your goal progress on the home screen</string>
 </resources>

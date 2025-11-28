@@ -13,6 +13,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import GoalsListScreen from './src/screens/GoalsListScreen';
 import CreateGoalScreen from './src/screens/CreateGoalScreen';
+import EditGoalScreen from './src/screens/EditGoalScreen';
 import GoalDetailScreen from './src/screens/GoalDetailScreen';
 import DailyLogScreen from './src/screens/DailyLogScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
@@ -83,6 +84,11 @@ const AppNavigator = () => {
                             name="CreateGoal"
                             component={CreateGoalScreen}
                             options={{ title: 'Create Goal' }}
+                        />
+                        <Stack.Screen
+                            name="EditGoal"
+                            component={EditGoalScreen}
+                            options={{ title: 'Edit Goal' }}
                         />
                         <Stack.Screen
                             name="GoalDetail"

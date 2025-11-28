@@ -6,19 +6,24 @@ import {
     SafeAreaView,
     ScrollView,
     TouchableOpacity,
-    Alert
+    Alert,
+    NativeModules,
+    Platform
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
+import SharedGroupPreferences from 'react-native-shared-group-preferences';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
-// import { BinVisualization } from '../components/BinVisualization'; // Commented out - requires Expo setup
 import { theme } from '../theme/theme';
+import { deleteGoalOffline } from '../store/slices/goalsSlice';
+import { incrementPendingChanges } from '../store/slices/syncSlice';
 import { RootState } from '../store';
 import { differenceInDays, format, parseISO } from 'date-fns';
 
 const GoalDetailScreen = ({ route, navigation }: any) => {
     const { goalClientId } = route.params;
+    const dispatch = useDispatch();
     const goal = useSelector((state: RootState) =>
         state.goals.goals.find(g => g.clientId === goalClientId)
     );
@@ -34,11 +39,13 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
         const daysFromStart = Math.max(0, differenceInDays(today, start));
         const daysRemaining = Math.max(0, goal.durationDays - daysFromStart);
         const progress = Math.min(100, (daysFromStart / goal.durationDays) * 100);
+        const loggedProgress = Math.min(100, (logs.length / goal.durationDays) * 100);
 
         return {
             daysFromStart,
             daysRemaining,
             progress,
+            loggedProgress,
             loggedDays: logs.length,
             startDate: format(start, 'MMM dd, yyyy'),
             endDate: format(new Date(start.getTime() + goal.durationDays * 24 * 60 * 60 * 1000), 'MMM dd, yyyy')
@@ -57,6 +64,62 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
         navigation.navigate('DailyLog', { goalClientId: goal.clientId });
     };
 
+    const handlePinToWidget = async () => {
+        if (!goal || !stats) return;
+
+        try {
+            const widgetData = {
+                goal_title: goal.title,
+                days_remaining: String(stats.daysRemaining),
+                progress: String(Math.round(stats.loggedProgress))
+            };
+
+            await SharedGroupPreferences.setItem('goal_title', widgetData.goal_title);
+            await SharedGroupPreferences.setItem('days_remaining', widgetData.days_remaining);
+            await SharedGroupPreferences.setItem('progress', widgetData.progress);
+
+            if (Platform.OS === 'android') {
+                const { GoalWidgetModule } = NativeModules;
+                if (GoalWidgetModule) {
+                    GoalWidgetModule.updateWidget();
+                }
+            }
+
+            Alert.alert(
+                'Success',
+                'Goal pinned to widget! Go to your home screen, long press, and add the "Day Tracker" widget.'
+            );
+        } catch (error) {
+            console.error('Error pinning to widget:', error);
+            Alert.alert('Error', `Failed to pin goal to widget: ${error}`);
+        }
+    };
+
+    const handleEditGoal = () => {
+        navigation.navigate('EditGoal', { goal });
+    };
+
+    const handleDeleteGoal = () => {
+        Alert.alert(
+            'Delete Goal',
+            `Are you sure you want to delete "${goal.title}"? This action cannot be undone.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        dispatch(deleteGoalOffline(goal.clientId));
+                        dispatch(incrementPendingChanges());
+                        Alert.alert('Deleted', 'Goal deleted successfully.', [
+                            { text: 'OK', onPress: () => navigation.goBack() }
+                        ]);
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <LinearGradient
             colors={[theme.colors.gray900, theme.colors.black]}
@@ -67,25 +130,21 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.title}>{goal.title}</Text>
                         {goal.description && (
                             <Text style={styles.description}>{goal.description}</Text>
                         )}
+                        <View style={styles.headerButtons}>
+                            <TouchableOpacity onPress={handleEditGoal} style={styles.headerButton}>
+                                <Text style={styles.headerButtonText}>✏️ Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleDeleteGoal} style={styles.headerButton}>
+                                <Text style={styles.headerButtonTextDanger}>🗑️ Delete</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    {/* 3D Bin Visualization - Commented out for now */}
-                    {/* <GlassCard style={styles.visualCard}>
-                        <Text style={styles.sectionTitle}>Progress Visualization</Text>
-                        <BinVisualization
-                            totalDays={goal.durationDays}
-                            loggedDays={stats?.loggedDays || 0}
-                            style={styles.binViz}
-                        />
-                    </GlassCard> */}
-
-                    {/* Stats Cards */}
                     <View style={styles.statsGrid}>
                         <GlassCard style={styles.statCard}>
                             <Text style={styles.statValue}>{stats?.daysFromStart || 0}</Text>
@@ -103,12 +162,18 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                             <Text style={styles.statLabel}>Days Logged</Text>
                         </GlassCard>
                         <GlassCard style={styles.statCard}>
-                            <Text style={styles.statValue}>{stats?.progress.toFixed(0)}%</Text>
-                            <Text style={styles.statLabel}>Progress</Text>
+                            <Text style={styles.statValue}>{stats?.progress.toFixed(3)}%</Text>
+                            <Text style={styles.statLabel}>Time Elapsed</Text>
                         </GlassCard>
                     </View>
 
-                    {/* Date Range */}
+                    <View style={styles.statsGrid}>
+                        <GlassCard style={[styles.statCard, { flex: 1 }]}>
+                            <Text style={styles.statValue}>{stats?.loggedProgress.toFixed(3)}%</Text>
+                            <Text style={styles.statLabel}>Progress Logged</Text>
+                        </GlassCard>
+                    </View>
+
                     <GlassCard style={styles.dateCard}>
                         <View style={styles.dateRow}>
                             <Text style={styles.dateLabel}>Start:</Text>
@@ -124,7 +189,6 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                         </View>
                     </GlassCard>
 
-                    {/* Recent Logs */}
                     {logs.length > 0 && (
                         <View style={styles.recentSection}>
                             <Text style={styles.sectionTitle}>Recent Logs ({logs.length})</Text>
@@ -151,14 +215,22 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                     <View style={{ height: 100 }} />
                 </ScrollView>
 
-                {/* Floating Action Button */}
-                <GlassButton
-                    title="+ Add Daily Log"
-                    onPress={handleAddLog}
-                    variant="primary"
-                    size="large"
-                    style={styles.fabButton}
-                />
+                <View style={styles.actionButtons}>
+                    <GlassButton
+                        title="📌 Pin to Widget"
+                        onPress={handlePinToWidget}
+                        variant="secondary"
+                        size="medium"
+                        style={styles.widgetButton}
+                    />
+                    <GlassButton
+                        title="+ Add Daily Log"
+                        onPress={handleAddLog}
+                        variant="primary"
+                        size="large"
+                        style={styles.fabButton}
+                    />
+                </View>
             </SafeAreaView>
         </LinearGradient>
     );
@@ -194,24 +266,35 @@ const styles = StyleSheet.create({
     },
     description: {
         fontSize: theme.typography.fontSize.md,
-        color: theme.colors.gray400
+        color: theme.colors.gray400,
+        marginBottom: theme.spacing.sm
     },
-    visualCard: {
-        marginBottom: theme.spacing.lg,
-        paddingVertical: theme.spacing.lg
+    headerButtons: {
+        flexDirection: 'row',
+        gap: theme.spacing.sm,
+        marginTop: theme.spacing.sm
     },
-    sectionTitle: {
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.semibold as any,
+    headerButton: {
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        backgroundColor: theme.colors.glassDark,
+        borderRadius: theme.borderRadius.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.borderLight
+    },
+    headerButtonText: {
         color: theme.colors.white,
-        marginBottom: theme.spacing.md
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.medium as any
     },
-    binViz: {
-        marginTop: theme.spacing.md
+    headerButtonTextDanger: {
+        color: '#FF6B6B',
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.medium as any
     },
     statsGrid: {
         flexDirection: 'row',
-        gap: theme.spacing.md,
+        gap: theme.spacing.sm,
         marginBottom: theme.spacing.md
     },
     statCard: {
@@ -250,6 +333,12 @@ const styles = StyleSheet.create({
     recentSection: {
         marginBottom: theme.spacing.lg
     },
+    sectionTitle: {
+        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.semibold as any,
+        color: theme.colors.white,
+        marginBottom: theme.spacing.md
+    },
     logCard: {
         marginBottom: theme.spacing.sm
     },
@@ -268,11 +357,17 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.xs,
         color: theme.colors.gray500
     },
-    fabButton: {
+    actionButtons: {
         position: 'absolute',
         bottom: theme.spacing.xl,
         left: theme.spacing.lg,
-        right: theme.spacing.lg
+        right: theme.spacing.lg,
+        gap: theme.spacing.sm
+    },
+    widgetButton: {
+        marginBottom: theme.spacing.sm
+    },
+    fabButton: {
     }
 });
 

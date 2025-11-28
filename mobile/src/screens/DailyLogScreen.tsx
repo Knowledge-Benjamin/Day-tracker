@@ -10,21 +10,28 @@ import {
     TouchableOpacity,
     Alert
 } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import DatePicker from 'react-native-date-picker';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { GlassInput } from '../components/GlassInput';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { theme } from '../theme/theme';
 import { addLogOffline } from '../store/slices/dailyLogsSlice';
 import { incrementPendingChanges } from '../store/slices/syncSlice';
-import { format } from 'date-fns';
+import { RootState } from '../store';
+import { format, parseISO, isBefore, isAfter, startOfDay } from 'date-fns';
 
 const DailyLogScreen = ({ route, navigation }: any) => {
     const { goalClientId } = route.params;
     const dispatch = useDispatch();
+
+    const goal = useSelector((state: RootState) =>
+        state.goals.goals.find(g => g.clientId === goalClientId)
+    );
+    const existingLogs = useSelector((state: RootState) =>
+        state.dailyLogs.logs.filter(l => l.goalClientId === goalClientId && !l._deleted)
+    );
 
     const [logDate, setLogDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -38,6 +45,43 @@ const DailyLogScreen = ({ route, navigation }: any) => {
     const [futurePlanDate, setFuturePlanDate] = useState<Date | null>(null);
     const [futurePlans, setFuturePlans] = useState<any[]>([]);
     const [showFutureDatePicker, setShowFutureDatePicker] = useState(false);
+
+    const validateDate = (date: Date): boolean => {
+        if (!goal) return false;
+
+        const selectedDay = startOfDay(date);
+        const today = startOfDay(new Date());
+        const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
+        const goalStart = startOfDay(parseISO(goal.startDate));
+        const goalEnd = startOfDay(new Date(goalStart.getTime() + goal.durationDays * 24 * 60 * 60 * 1000));
+
+        if (isAfter(selectedDay, today)) {
+            Alert.alert('Invalid Date', 'You cannot log future dates.');
+            return false;
+        }
+
+        if (isBefore(selectedDay, goalStart) || isAfter(selectedDay, goalEnd)) {
+            Alert.alert('Invalid Date', 'This date is outside your goal timeframe.');
+            return false;
+        }
+
+        const existingLog = existingLogs.find(l => l.logDate === format(selectedDay, 'yyyy-MM-dd'));
+
+        if (selectedDay.getTime() === today.getTime()) {
+            return true;
+        }
+
+        if (selectedDay.getTime() === yesterday.getTime()) {
+            if (!existingLog) {
+                Alert.alert('Cannot Create', 'You can only edit yesterday\'s log if it was created yesterday.');
+                return false;
+            }
+            return true;
+        }
+
+        Alert.alert('Invalid Date', 'You can only log for today, or edit yesterday\'s log if it exists.');
+        return false;
+    };
 
     const addActivity = () => {
         if (activityInput.trim()) {
@@ -82,6 +126,10 @@ const DailyLogScreen = ({ route, navigation }: any) => {
     };
 
     const handleSaveLog = () => {
+        if (!validateDate(logDate)) {
+            return;
+        }
+
         if (!notes && activities.length === 0 && goodThings.length === 0) {
             Alert.alert('Empty Log', 'Please add at least some notes or an activity');
             return;
@@ -120,7 +168,6 @@ const DailyLogScreen = ({ route, navigation }: any) => {
                     >
                         <Text style={styles.headerText}>Daily Log Entry</Text>
 
-                        {/* Date Selection */}
                         <GlassCard style={styles.section}>
                             <Text style={styles.sectionTitle}>Log Date</Text>
                             <GlassButton
@@ -130,7 +177,6 @@ const DailyLogScreen = ({ route, navigation }: any) => {
                             />
                         </GlassCard>
 
-                        {/* Notes */}
                         <GlassCard style={styles.section}>
                             <Text style={styles.sectionTitle}>Notes</Text>
                             <GlassInput
@@ -143,7 +189,6 @@ const DailyLogScreen = ({ route, navigation }: any) => {
                             />
                         </GlassCard>
 
-                        {/* Activities */}
                         <GlassCard style={styles.section}>
                             <Text style={styles.sectionTitle}>Activities</Text>
                             <View style={styles.inputRow}>
@@ -165,7 +210,6 @@ const DailyLogScreen = ({ route, navigation }: any) => {
                             ))}
                         </GlassCard>
 
-                        {/* Good Things */}
                         <GlassCard style={styles.section}>
                             <Text style={styles.sectionTitle}>Good Things That Happened</Text>
                             <View style={styles.inputRow}>
@@ -187,7 +231,6 @@ const DailyLogScreen = ({ route, navigation }: any) => {
                             ))}
                         </GlassCard>
 
-                        {/* Future Plans */}
                         <GlassCard style={styles.section}>
                             <Text style={styles.sectionTitle}>Future Plans / Important Dates</Text>
                             <GlassInput

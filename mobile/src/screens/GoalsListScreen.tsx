@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
@@ -15,10 +15,12 @@ import { GlassButton } from '../components/GlassButton';
 import { theme } from '../theme/theme';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
+import { differenceInDays, parseISO } from 'date-fns';
 
 const GoalsListScreen = ({ navigation }: any) => {
     const dispatch = useDispatch();
     const { goals, loading } = useSelector((state: RootState) => state.goals);
+    const dailyLogs = useSelector((state: RootState) => state.dailyLogs.logs);
     const { user } = useSelector((state: RootState) => state.auth);
     const { isSyncing, lastSyncAt } = useSelector((state: RootState) => state.sync);
 
@@ -30,8 +32,16 @@ const GoalsListScreen = ({ navigation }: any) => {
     };
 
     const renderGoalCard = ({ item }: { item: any }) => {
-        const daysElapsed = Math.max(0, item.loggedDays || 0);
-        const progressPercent = Math.min(100, (daysElapsed / item.durationDays) * 100);
+        const goalLogs = dailyLogs.filter(l => l.goalClientId === item.clientId && !l._deleted);
+        const daysLogged = goalLogs.length;
+
+        const today = new Date();
+        const start = parseISO(item.startDate);
+        const daysElapsed = Math.max(0, differenceInDays(today, start));
+        const daysRemaining = Math.max(0, item.durationDays - daysElapsed);
+
+        const loggedPercent = Math.min(100, (daysLogged / item.durationDays) * 100);
+        const elapsedPercent = Math.min(100, (daysElapsed / item.durationDays) * 100);
 
         return (
             <TouchableOpacity
@@ -55,21 +65,31 @@ const GoalsListScreen = ({ navigation }: any) => {
 
                     <View style={styles.statsContainer}>
                         <View style={styles.stat}>
-                            <Text style={styles.statValue}>{daysElapsed}</Text>
+                            <Text style={styles.statValue}>{daysLogged}</Text>
                             <Text style={styles.statLabel}>Days Logged</Text>
                         </View>
                         <View style={styles.stat}>
-                            <Text style={styles.statValue}>{item.daysRemaining || item.durationDays}</Text>
-                            <Text style={styles.statLabel}>Days Remaining</Text>
+                            <Text style={styles.statValue}>{daysElapsed}</Text>
+                            <Text style={styles.statLabel}>Days Elapsed</Text>
                         </View>
                         <View style={styles.stat}>
-                            <Text style={styles.statValue}>{progressPercent.toFixed(0)}%</Text>
+                            <Text style={styles.statValue}>{loggedPercent.toFixed(3)}%</Text>
                             <Text style={styles.statLabel}>Progress</Text>
                         </View>
                     </View>
 
-                    <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                    <View style={styles.progressBarContainer}>
+                        <Text style={styles.progressLabel}>Days Logged Progress</Text>
+                        <View style={styles.progressBar}>
+                            <View style={[styles.progressFillLogged, { width: `${loggedPercent}%` }]} />
+                        </View>
+                        <Text style={styles.progressPercentText}>{loggedPercent.toFixed(3)}%</Text>
+
+                        <Text style={[styles.progressLabel, { marginTop: theme.spacing.sm }]}>Days Elapsed Progress</Text>
+                        <View style={styles.progressBar}>
+                            <View style={[styles.progressFillElapsed, { width: `${elapsedPercent}%` }]} />
+                        </View>
+                        <Text style={styles.progressPercentText}>{elapsedPercent.toFixed(3)}%</Text>
                     </View>
                 </GlassCard>
             </TouchableOpacity>
@@ -232,16 +252,35 @@ const styles = StyleSheet.create({
         color: theme.colors.gray400,
         marginTop: theme.spacing.xs
     },
+    progressBarContainer: {
+        marginTop: theme.spacing.sm
+    },
+    progressLabel: {
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.gray500,
+        marginBottom: theme.spacing.xs
+    },
     progressBar: {
-        height: 6,
+        height: 8,
         backgroundColor: theme.colors.gray700,
         borderRadius: theme.borderRadius.sm,
         overflow: 'hidden'
     },
-    progressFill: {
+    progressFillLogged: {
         height: '100%',
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#4CAF50',
         borderRadius: theme.borderRadius.sm
+    },
+    progressFillElapsed: {
+        height: '100%',
+        backgroundColor: '#FF6B6B',
+        borderRadius: theme.borderRadius.sm
+    },
+    progressPercentText: {
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.gray400,
+        marginTop: theme.spacing.xs,
+        textAlign: 'right'
     },
     createButton: {
         position: 'absolute',
