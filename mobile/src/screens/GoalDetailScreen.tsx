@@ -12,7 +12,7 @@ import { useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
-import { BinVisualization } from '../components/BinVisualization';
+// import { BinVisualization } from '../components/BinVisualization'; // Commented out - requires Expo setup
 import { theme } from '../theme/theme';
 import { RootState } from '../store';
 import { differenceInDays, format, parseISO } from 'date-fns';
@@ -75,15 +75,15 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                         )}
                     </View>
 
-                    {/* 3D Bin Visualization */}
-                    <GlassCard style={styles.visualCard}>
+                    {/* 3D Bin Visualization - Commented out for now */}
+                    {/* <GlassCard style={styles.visualCard}>
                         <Text style={styles.sectionTitle}>Progress Visualization</Text>
                         <BinVisualization
                             totalDays={goal.durationDays}
                             loggedDays={stats?.loggedDays || 0}
                             style={styles.binViz}
                         />
-                    </GlassCard>
+                    </GlassCard> */}
 
                     {/* Stats Cards */}
                     <View style={styles.statsGrid}>

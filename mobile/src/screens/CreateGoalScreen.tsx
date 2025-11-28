@@ -16,7 +16,8 @@ import { GlassInput } from '../components/GlassInput';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { theme } from '../theme/theme';
-import { addGoalOffline, incrementPendingChanges } from '../store/slices/goalsSlice';
+import { addGoalOffline } from '../store/slices/goalsSlice';
+import { incrementPendingChanges } from '../store/slices/syncSlice';
 import { format } from 'date-fns';
 
 const CreateGoalScreen = ({ navigation }: any) => {

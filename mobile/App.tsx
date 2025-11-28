@@ -2,20 +2,20 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from './store';
-import { theme } from './theme/theme';
-import { syncService } from './services/syncService';
+import { store, persistor, RootState } from './src/store';
+import { theme } from './src/theme/theme';
+import { syncService } from './src/services/syncService';
 
 // Screens
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import GoalsListScreen from './screens/GoalsListScreen';
-import CreateGoalScreen from './screens/CreateGoalScreen';
-import GoalDetailScreen from './screens/GoalDetailScreen';
-import DailyLogScreen from './screens/DailyLogScreen';
-import CalendarScreen from './screens/CalendarScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+import GoalsListScreen from './src/screens/GoalsListScreen';
+import CreateGoalScreen from './src/screens/CreateGoalScreen';
+import GoalDetailScreen from './src/screens/GoalDetailScreen';
+import DailyLogScreen from './src/screens/DailyLogScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -56,35 +56,24 @@ const MainTabs = () => {
     );
 };
 
-const App = () => {
-    return (
-        <Provider store={store}>
-            <PersistGate loading={null} persistor={persistor}>
-                <NavigationContainer>
-                    <Stack.Navigator
-                        screenOptions={{
-                            headerStyle: {
-                                backgroundColor: theme.colors.black,
-                            },
-                            headerTintColor: theme.colors.white,
-                            headerTitleStyle: {
-                                fontWeight: theme.typography.fontWeight.bold as any,
-                            },
-                        }}
-                    >
-                        {/* Auth screens */}
-                        <Stack.Screen
-                            name="Login"
-                            component={LoginScreen}
-                            options={{ headerShown: false }}
-                        />
-                        <Stack.Screen
-                            name="Register"
-                            component={RegisterScreen}
-                            options={{ headerShown: false }}
-                        />
+const AppNavigator = () => {
+    const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
 
-                        {/* Main app */}
+    return (
+        <NavigationContainer>
+            <Stack.Navigator
+                screenOptions={{
+                    headerStyle: {
+                        backgroundColor: theme.colors.black,
+                    },
+                    headerTintColor: theme.colors.white,
+                    headerTitleStyle: {
+                        fontWeight: theme.typography.fontWeight.bold as any,
+                    },
+                }}
+            >
+                {isAuthenticated ? (
+                    <>
                         <Stack.Screen
                             name="Main"
                             component={MainTabs}
@@ -105,8 +94,31 @@ const App = () => {
                             component={DailyLogScreen}
                             options={{ title: 'Daily Log' }}
                         />
-                    </Stack.Navigator>
-                </NavigationContainer>
+                    </>
+                ) : (
+                    <>
+                        <Stack.Screen
+                            name="Login"
+                            component={LoginScreen}
+                            options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                            name="Register"
+                            component={RegisterScreen}
+                            options={{ headerShown: false }}
+                        />
+                    </>
+                )}
+            </Stack.Navigator>
+        </NavigationContainer>
+    );
+};
+
+const App = () => {
+    return (
+        <Provider store={store}>
+            <PersistGate loading={null} persistor={persistor}>
+                <AppNavigator />
             </PersistGate>
         </Provider>
     );

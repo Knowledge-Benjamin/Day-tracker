@@ -18,7 +18,8 @@ import { GlassInput } from '../components/GlassInput';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { theme } from '../theme/theme';
-import { addLogOffline, incrementPendingChanges } from '../store/slices/dailyLogsSlice';
+import { addLogOffline } from '../store/slices/dailyLogsSlice';
+import { incrementPendingChanges } from '../store/slices/syncSlice';
 import { format } from 'date-fns';
 
 const DailyLogScreen = ({ route, navigation }: any) => {
