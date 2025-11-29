@@ -5,11 +5,12 @@ import goalsReducer from './slices/goalsSlice';
 import dailyLogsReducer from './slices/dailyLogsSlice';
 import authReducer from './slices/authSlice';
 import syncReducer from './slices/syncSlice';
+import calendarReducer from './slices/calendarSlice';
 
 const persistConfig = {
     key: 'root',
     storage: AsyncStorage,
-    whitelist: ['auth', 'goals', 'dailyLogs'] // Persist these reducers
+    whitelist: ['auth', 'goals', 'dailyLogs', 'calendar'] // Persist these reducers
 };
 
 export const store = configureStore({
@@ -17,6 +18,7 @@ export const store = configureStore({
         auth: persistReducer({ ...persistConfig, key: 'auth' }, authReducer),
         goals: persistReducer({ ...persistConfig, key: 'goals' }, goalsReducer),
         dailyLogs: persistReducer({ ...persistConfig, key: 'dailyLogs' }, dailyLogsReducer),
+        calendar: persistReducer({ ...persistConfig, key: 'calendar' }, calendarReducer),
         sync: syncReducer
     },
     middleware: (getDefaultMiddleware) =>

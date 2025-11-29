@@ -14,309 +14,297 @@ import { useDispatch, useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import DatePicker from 'react-native-date-picker';
 import { GlassInput } from '../components/GlassInput';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
-import { theme } from '../theme/theme';
-import { addLogOffline } from '../store/slices/dailyLogsSlice';
-import { incrementPendingChanges } from '../store/slices/syncSlice';
-import { RootState } from '../store';
-import { format, parseISO, isBefore, isAfter, startOfDay } from 'date-fns';
+const goal = useSelector((state: RootState) =>
+    state.goals.goals.find(g => g.clientId === goalClientId)
+);
+const existingLogs = useSelector((state: RootState) =>
+    state.dailyLogs.logs.filter(l => l.goalClientId === goalClientId && !l._deleted)
+);
 
-const DailyLogScreen = ({ route, navigation }: any) => {
-    const { goalClientId } = route.params;
-    const dispatch = useDispatch();
+const [logDate, setLogDate] = useState(new Date());
+const [showDatePicker, setShowDatePicker] = useState(false);
+const [notes, setNotes] = useState('');
+const [activityInput, setActivityInput] = useState('');
+const [activities, setActivities] = useState<string[]>([]);
+const [goodThingInput, setGoodThingInput] = useState('');
+const [goodThings, setGoodThings] = useState<string[]>([]);
+const [futurePlanTitle, setFuturePlanTitle] = useState('');
+const [futurePlanDescription, setFuturePlanDescription] = useState('');
+const [futurePlanDate, setFuturePlanDate] = useState<Date | null>(null);
+const [futurePlans, setFuturePlans] = useState<any[]>([]);
+const [showFutureDatePicker, setShowFutureDatePicker] = useState(false);
 
-    const goal = useSelector((state: RootState) =>
-        state.goals.goals.find(g => g.clientId === goalClientId)
-    );
-    const existingLogs = useSelector((state: RootState) =>
-        state.dailyLogs.logs.filter(l => l.goalClientId === goalClientId && !l._deleted)
-    );
+const validateDate = (date: Date): boolean => {
+    if (!goal) return false;
 
-    const [logDate, setLogDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [notes, setNotes] = useState('');
-    const [activityInput, setActivityInput] = useState('');
-    const [activities, setActivities] = useState<string[]>([]);
-    const [goodThingInput, setGoodThingInput] = useState('');
-    const [goodThings, setGoodThings] = useState<string[]>([]);
-    const [futurePlanTitle, setFuturePlanTitle] = useState('');
-    const [futurePlanDescription, setFuturePlanDescription] = useState('');
-    const [futurePlanDate, setFuturePlanDate] = useState<Date | null>(null);
-    const [futurePlans, setFuturePlans] = useState<any[]>([]);
-    const [showFutureDatePicker, setShowFutureDatePicker] = useState(false);
+    const selectedDay = startOfDay(date);
+    const today = startOfDay(new Date());
+    const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
+    const goalStart = startOfDay(parseISO(goal.startDate));
+    const goalEnd = startOfDay(new Date(goalStart.getTime() + goal.durationDays * 24 * 60 * 60 * 1000));
 
-    const validateDate = (date: Date): boolean => {
-        if (!goal) return false;
-
-        const selectedDay = startOfDay(date);
-        const today = startOfDay(new Date());
-        const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
-        const goalStart = startOfDay(parseISO(goal.startDate));
-        const goalEnd = startOfDay(new Date(goalStart.getTime() + goal.durationDays * 24 * 60 * 60 * 1000));
-
-        if (isAfter(selectedDay, today)) {
-            Alert.alert('Invalid Date', 'You cannot log future dates.');
-            return false;
-        }
-
-        if (isBefore(selectedDay, goalStart) || isAfter(selectedDay, goalEnd)) {
-            Alert.alert('Invalid Date', 'This date is outside your goal timeframe.');
-            return false;
-        }
-
-        const existingLog = existingLogs.find(l => l.logDate === format(selectedDay, 'yyyy-MM-dd'));
-
-        if (selectedDay.getTime() === today.getTime()) {
-            return true;
-        }
-
-        if (selectedDay.getTime() === yesterday.getTime()) {
-            if (!existingLog) {
-                Alert.alert('Cannot Create', 'You can only edit yesterday\'s log if it was created yesterday.');
-                return false;
-            }
-            return true;
-        }
-
-        Alert.alert('Invalid Date', 'You can only log for today, or edit yesterday\'s log if it exists.');
+    if (isAfter(selectedDay, today)) {
+        Alert.alert('Invalid Date', 'You cannot log future dates.');
         return false;
-    };
+    }
 
-    const addActivity = () => {
-        if (activityInput.trim()) {
-            setActivities([...activities, activityInput.trim()]);
-            setActivityInput('');
+    if (isBefore(selectedDay, goalStart) || isAfter(selectedDay, goalEnd)) {
+        Alert.alert('Invalid Date', 'This date is outside your goal timeframe.');
+        return false;
+    }
+
+    const existingLog = existingLogs.find(l => l.logDate === format(selectedDay, 'yyyy-MM-dd'));
+
+    if (selectedDay.getTime() === today.getTime()) {
+        return true;
+    }
+
+    if (selectedDay.getTime() === yesterday.getTime()) {
+        if (!existingLog) {
+            Alert.alert('Cannot Create', 'You can only edit yesterday\'s log if it was created yesterday.');
+            return false;
         }
-    };
+        return true;
+    }
 
-    const removeActivity = (index: number) => {
-        setActivities(activities.filter((_, i) => i !== index));
-    };
+    Alert.alert('Invalid Date', 'You can only log for today, or edit yesterday\'s log if it exists.');
+    return false;
+};
 
-    const addGoodThing = () => {
-        if (goodThingInput.trim()) {
-            setGoodThings([...goodThings, goodThingInput.trim()]);
-            setGoodThingInput('');
-        }
-    };
+const addActivity = () => {
+    if (activityInput.trim()) {
+        setActivities([...activities, activityInput.trim()]);
+        setActivityInput('');
+    }
+};
 
-    const removeGoodThing = (index: number) => {
-        setGoodThings(goodThings.filter((_, i) => i !== index));
-    };
+const removeActivity = (index: number) => {
+    setActivities(activities.filter((_, i) => i !== index));
+};
 
-    const addFuturePlan = () => {
-        if (futurePlanTitle.trim()) {
-            setFuturePlans([
-                ...futurePlans,
-                {
-                    title: futurePlanTitle.trim(),
-                    description: futurePlanDescription.trim() || undefined,
-                    plannedDate: futurePlanDate ? format(futurePlanDate, 'yyyy-MM-dd') : undefined
-                }
-            ]);
-            setFuturePlanTitle('');
-            setFuturePlanDescription('');
-            setFuturePlanDate(null);
-        }
-    };
+const addGoodThing = () => {
+    if (goodThingInput.trim()) {
+        setGoodThings([...goodThings, goodThingInput.trim()]);
+        setGoodThingInput('');
+    }
+};
 
-    const removeFuturePlan = (index: number) => {
-        setFuturePlans(futurePlans.filter((_, i) => i !== index));
-    };
+const removeGoodThing = (index: number) => {
+    setGoodThings(goodThings.filter((_, i) => i !== index));
+};
 
-    const handleSaveLog = () => {
-        if (!validateDate(logDate)) {
-            return;
-        }
-
-        if (!notes && activities.length === 0 && goodThings.length === 0) {
-            Alert.alert('Empty Log', 'Please add at least some notes or an activity');
-            return;
-        }
-
-        dispatch(addLogOffline({
-            goalClientId,
-            logDate: format(logDate, 'yyyy-MM-dd'),
-            notes: notes.trim() || undefined,
-            activities,
-            goodThings,
-            futurePlans,
-            attachments: []
-        }));
-
-        dispatch(incrementPendingChanges());
-
-        Alert.alert('Success', 'Daily log saved! It will sync when online.', [
-            { text: 'OK', onPress: () => navigation.goBack() }
+const addFuturePlan = () => {
+    if (futurePlanTitle.trim()) {
+        setFuturePlans([
+            ...futurePlans,
+            {
+                title: futurePlanTitle.trim(),
+                description: futurePlanDescription.trim() || undefined,
+                plannedDate: futurePlanDate ? format(futurePlanDate, 'yyyy-MM-dd') : undefined
+            }
         ]);
-    };
+        setFuturePlanTitle('');
+        setFuturePlanDescription('');
+        setFuturePlanDate(null);
+    }
+};
 
-    return (
-        <LinearGradient
-            colors={[theme.colors.gray900, theme.colors.black]}
-            style={styles.container}
-        >
-            <SafeAreaView style={styles.safeArea}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardView}
+const removeFuturePlan = (index: number) => {
+    setFuturePlans(futurePlans.filter((_, i) => i !== index));
+};
+
+const handleSaveLog = () => {
+    if (!validateDate(logDate)) {
+        return;
+    }
+
+    if (!notes && activities.length === 0 && goodThings.length === 0) {
+        Alert.alert('Empty Log', 'Please add at least some notes or an activity');
+        return;
+    }
+
+    dispatch(addLogOffline({
+        goalClientId,
+        logDate: format(logDate, 'yyyy-MM-dd'),
+        notes: notes.trim() || undefined,
+        activities,
+        goodThings,
+        futurePlans,
+        attachments: []
+    }));
+
+    dispatch(incrementPendingChanges());
+
+    Alert.alert('Success', 'Daily log saved! It will sync when online.', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+    ]);
+};
+
+return (
+    <LinearGradient
+        colors={[theme.colors.gray900, theme.colors.black]}
+        style={styles.container}
+    >
+        <SafeAreaView style={styles.safeArea}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
                 >
-                    <ScrollView
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <Text style={styles.headerText}>Daily Log Entry</Text>
+                    <Text style={styles.headerText}>Daily Log Entry</Text>
 
-                        <GlassCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Log Date</Text>
-                            <GlassButton
-                                title={format(logDate, 'EEEE, MMM dd, yyyy')}
-                                onPress={() => setShowDatePicker(true)}
-                                variant="secondary"
-                            />
-                        </GlassCard>
-
-                        <GlassCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Notes</Text>
-                            <GlassInput
-                                placeholder="What happened today? How are you feeling?"
-                                value={notes}
-                                onChangeText={setNotes}
-                                multiline
-                                numberOfLines={5}
-                                style={styles.textArea}
-                            />
-                        </GlassCard>
-
-                        <GlassCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Activities</Text>
-                            <View style={styles.inputRow}>
-                                <GlassInput
-                                    placeholder="Add an activity..."
-                                    value={activityInput}
-                                    onChangeText={setActivityInput}
-                                    containerStyle={styles.flexInput}
-                                />
-                                <GlassButton title="Add" onPress={addActivity} size="small" />
-                            </View>
-                            {activities.map((activity, index) => (
-                                <View key={index} style={styles.listItem}>
-                                    <Text style={styles.listItemText}>• {activity}</Text>
-                                    <TouchableOpacity onPress={() => removeActivity(index)}>
-                                        <Text style={styles.removeButton}>✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </GlassCard>
-
-                        <GlassCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Good Things That Happened</Text>
-                            <View style={styles.inputRow}>
-                                <GlassInput
-                                    placeholder="Something positive..."
-                                    value={goodThingInput}
-                                    onChangeText={setGoodThingInput}
-                                    containerStyle={styles.flexInput}
-                                />
-                                <GlassButton title="Add" onPress={addGoodThing} size="small" />
-                            </View>
-                            {goodThings.map((thing, index) => (
-                                <View key={index} style={styles.listItem}>
-                                    <Text style={styles.listItemText}>✨ {thing}</Text>
-                                    <TouchableOpacity onPress={() => removeGoodThing(index)}>
-                                        <Text style={styles.removeButton}>✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </GlassCard>
-
-                        <GlassCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Future Plans / Important Dates</Text>
-                            <GlassInput
-                                label="Title"
-                                placeholder="Plan or event title..."
-                                value={futurePlanTitle}
-                                onChangeText={setFuturePlanTitle}
-                            />
-                            <GlassInput
-                                label="Description (Optional)"
-                                placeholder="Additional details..."
-                                value={futurePlanDescription}
-                                onChangeText={setFuturePlanDescription}
-                            />
-                            <Text style={styles.label}>When? (Optional)</Text>
-                            <GlassButton
-                                title={futurePlanDate ? format(futurePlanDate, 'MMM dd, yyyy') : 'Select Date'}
-                                onPress={() => setShowFutureDatePicker(true)}
-                                variant="secondary"
-                                size="small"
-                                style={styles.smallButton}
-                            />
-                            <GlassButton
-                                title="Add Plan"
-                                onPress={addFuturePlan}
-                                size="small"
-                                style={styles.smallButton}
-                            />
-                            {futurePlans.map((plan, index) => (
-                                <View key={index} style={styles.planItem}>
-                                    <View style={styles.planContent}>
-                                        <Text style={styles.planTitle}>{plan.title}</Text>
-                                        {plan.description && (
-                                            <Text style={styles.planDescription}>{plan.description}</Text>
-                                        )}
-                                        {plan.plannedDate && (
-                                            <Text style={styles.planDate}>
-                                                📅 {format(new Date(plan.plannedDate), 'MMM dd, yyyy')}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <TouchableOpacity onPress={() => removeFuturePlan(index)}>
-                                        <Text style={styles.removeButton}>✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </GlassCard>
-
+                    <GlassCard style={styles.section}>
+                        <Text style={styles.sectionTitle}>Log Date</Text>
                         <GlassButton
-                            title="Save Daily Log"
-                            onPress={handleSaveLog}
-                            variant="primary"
-                            size="large"
-                            style={styles.saveButton}
+                            title={format(logDate, 'EEEE, MMM dd, yyyy')}
+                            onPress={() => setShowDatePicker(true)}
+                            variant="secondary"
                         />
+                    </GlassCard>
 
-                        <View style={{ height: 50 }} />
-                    </ScrollView>
-                </KeyboardAvoidingView>
+                    <GlassCard style={styles.section}>
+                        <Text style={styles.sectionTitle}>Notes</Text>
+                        <GlassInput
+                            placeholder="What happened today? How are you feeling?"
+                            value={notes}
+                            onChangeText={setNotes}
+                            multiline
+                            numberOfLines={5}
+                            style={styles.textArea}
+                        />
+                    </GlassCard>
 
-                <DatePicker
-                    modal
-                    open={showDatePicker}
-                    date={logDate}
-                    mode="date"
-                    onConfirm={(date) => {
-                        setShowDatePicker(false);
-                        setLogDate(date);
-                    }}
-                    onCancel={() => setShowDatePicker(false)}
-                />
+                    <GlassCard style={styles.section}>
+                        <Text style={styles.sectionTitle}>Activities</Text>
+                        <View style={styles.inputRow}>
+                            <GlassInput
+                                placeholder="Add an activity..."
+                                value={activityInput}
+                                onChangeText={setActivityInput}
+                                containerStyle={styles.flexInput}
+                            />
+                            <GlassButton title="Add" onPress={addActivity} size="small" />
+                        </View>
+                        {activities.map((activity, index) => (
+                            <View key={index} style={styles.listItem}>
+                                <Text style={styles.listItemText}>• {activity}</Text>
+                                <TouchableOpacity onPress={() => removeActivity(index)}>
+                                    <Text style={styles.removeButton}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </GlassCard>
 
-                <DatePicker
-                    modal
-                    open={showFutureDatePicker}
-                    date={futurePlanDate || new Date()}
-                    mode="date"
-                    onConfirm={(date) => {
-                        setShowFutureDatePicker(false);
-                        setFuturePlanDate(date);
-                    }}
-                    onCancel={() => setShowFutureDatePicker(false)}
-                />
-            </SafeAreaView>
-        </LinearGradient>
-    );
+                    <GlassCard style={styles.section}>
+                        <Text style={styles.sectionTitle}>Good Things That Happened</Text>
+                        <View style={styles.inputRow}>
+                            <GlassInput
+                                placeholder="Something positive..."
+                                value={goodThingInput}
+                                onChangeText={setGoodThingInput}
+                                containerStyle={styles.flexInput}
+                            />
+                            <GlassButton title="Add" onPress={addGoodThing} size="small" />
+                        </View>
+                        {goodThings.map((thing, index) => (
+                            <View key={index} style={styles.listItem}>
+                                <Text style={styles.listItemText}>✨ {thing}</Text>
+                                <TouchableOpacity onPress={() => removeGoodThing(index)}>
+                                    <Text style={styles.removeButton}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </GlassCard>
+
+                    <GlassCard style={styles.section}>
+                        <Text style={styles.sectionTitle}>Future Plans / Important Dates</Text>
+                        <GlassInput
+                            label="Title"
+                            placeholder="Plan or event title..."
+                            value={futurePlanTitle}
+                            onChangeText={setFuturePlanTitle}
+                        />
+                        <GlassInput
+                            label="Description (Optional)"
+                            placeholder="Additional details..."
+                            value={futurePlanDescription}
+                            onChangeText={setFuturePlanDescription}
+                        />
+                        <Text style={styles.label}>When? (Optional)</Text>
+                        <GlassButton
+                            title={futurePlanDate ? format(futurePlanDate, 'MMM dd, yyyy') : 'Select Date'}
+                            onPress={() => setShowFutureDatePicker(true)}
+                            variant="secondary"
+                            size="small"
+                            style={styles.smallButton}
+                        />
+                        <GlassButton
+                            title="Add Plan"
+                            onPress={addFuturePlan}
+                            size="small"
+                            style={styles.smallButton}
+                        />
+                        {futurePlans.map((plan, index) => (
+                            <View key={index} style={styles.planItem}>
+                                <View style={styles.planContent}>
+                                    <Text style={styles.planTitle}>{plan.title}</Text>
+                                    {plan.description && (
+                                        <Text style={styles.planDescription}>{plan.description}</Text>
+                                    )}
+                                    {plan.plannedDate && (
+                                        <Text style={styles.planDate}>
+                                            📅 {format(new Date(plan.plannedDate), 'MMM dd, yyyy')}
+                                        </Text>
+                                    )}
+                                </View>
+                                <TouchableOpacity onPress={() => removeFuturePlan(index)}>
+                                    <Text style={styles.removeButton}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </GlassCard>
+
+                    <GlassButton
+                        title="Save Daily Log"
+                        onPress={handleSaveLog}
+                        variant="primary"
+                        size="large"
+                        style={styles.saveButton}
+                    />
+
+                    <View style={{ height: 50 }} />
+                </ScrollView>
+            </KeyboardAvoidingView>
+
+            <DatePicker
+                modal
+                open={showDatePicker}
+                date={logDate}
+                mode="date"
+                onConfirm={(date) => {
+                    setShowDatePicker(false);
+                    setLogDate(date);
+                }}
+                onCancel={() => setShowDatePicker(false)}
+            />
+
+            <DatePicker
+                modal
+                open={showFutureDatePicker}
+                date={futurePlanDate || new Date()}
+                mode="date"
+                onConfirm={(date) => {
+                    setShowFutureDatePicker(false);
+                    setFuturePlanDate(date);
+                }}
+                onCancel={() => setShowFutureDatePicker(false)}
+            />
+        </SafeAreaView>
+    </LinearGradient>
+);
 };
 
 const styles = StyleSheet.create({

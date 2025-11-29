@@ -7,6 +7,8 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor, RootState } from './src/store';
 import { theme } from './src/theme/theme';
 import { syncService } from './src/services/syncService';
+import { googleCalendarService } from './src/services/googleCalendarService';
+import { GOOGLE_ANDROID_CLIENT_ID } from '@env';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -23,6 +25,13 @@ const Tab = createBottomTabNavigator();
 
 // Initialize sync service
 syncService.init();
+
+// Initialize Google Calendar service
+if (GOOGLE_ANDROID_CLIENT_ID) {
+    googleCalendarService.configure(GOOGLE_ANDROID_CLIENT_ID).catch(err => {
+        console.error('Failed to configure Google Calendar:', err);
+    });
+}
 
 const MainTabs = () => {
     return (

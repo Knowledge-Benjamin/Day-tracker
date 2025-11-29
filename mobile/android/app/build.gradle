@@ -114,6 +114,9 @@ dependencies {
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
-        implementation jscFlavor
+        implementation(jscFlavor)
     }
+    
+    // Google Sign-In for Google Calendar integration
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
 }
