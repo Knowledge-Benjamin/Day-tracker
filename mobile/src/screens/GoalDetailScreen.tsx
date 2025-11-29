@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     headerButton: {
         paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.xs,
-        backgroundColor: theme.colors.glassDark,
+        backgroundColor: theme.colors.glassDarkMedium,
         borderRadius: theme.borderRadius.sm,
         borderWidth: 1,
         borderColor: theme.colors.borderLight
