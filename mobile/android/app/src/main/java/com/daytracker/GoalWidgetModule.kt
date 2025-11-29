@@ -14,13 +14,27 @@ class GoalWidgetModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun saveWidgetData(goalTitle: String, daysRemaining: Int, progress: Int) {
+    fun saveWidgetData(
+        goalClientId: String,
+        goalTitle: String,
+        description: String,
+        daysLogged: Int,
+        daysElapsed: Int,
+        daysRemaining: Int,
+        loggedProgress: Double,
+        elapsedProgress: Double
+    ) {
         val context = reactApplicationContext
         val prefs = context.getSharedPreferences("DayTrackerWidget", android.content.Context.MODE_PRIVATE)
         prefs.edit().apply {
+            putString("goal_client_id", goalClientId)
             putString("goal_title", goalTitle)
+            putString("goal_description", description)
+            putInt("days_logged", daysLogged)
+            putInt("days_elapsed", daysElapsed)
             putInt("days_remaining", daysRemaining)
-            putInt("progress", progress)
+            putFloat("logged_progress", loggedProgress.toFloat())
+            putFloat("elapsed_progress", elapsedProgress.toFloat())
             apply()
         }
     }

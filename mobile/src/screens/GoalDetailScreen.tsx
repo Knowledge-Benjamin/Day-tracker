@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
-import SharedGroupPreferences from 'react-native-shared-group-preferences';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { theme } from '../theme/theme';
@@ -71,11 +70,16 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
             if (Platform.OS === 'android') {
                 const { GoalWidgetModule } = NativeModules;
                 if (GoalWidgetModule) {
-                    // Save data via native module
+                    // Save all goal data via native module
                     await GoalWidgetModule.saveWidgetData(
+                        goal.clientId,
                         goal.title,
+                        goal.description || '',
+                        stats.loggedDays,
+                        stats.daysFromStart,
                         stats.daysRemaining,
-                        Math.round(stats.loggedProgress)
+                        stats.loggedProgress,
+                        stats.progress
                     );
 
                     // Update widget
@@ -170,7 +174,7 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
                     </View>
 
                     <View style={styles.statsGrid}>
-                        <GlassCard style={[styles.statCard, { flex: 1 }]}>
+                        <GlassCard style={styles.statCardFull}>
                             <Text style={styles.statValue}>{stats?.loggedProgress.toFixed(3)}%</Text>
                             <Text style={styles.statLabel}>Progress Logged</Text>
                         </GlassCard>
@@ -300,6 +304,11 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.md
     },
     statCard: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: theme.spacing.lg
+    },
+    statCardFull: {
         flex: 1,
         alignItems: 'center',
         paddingVertical: theme.spacing.lg
