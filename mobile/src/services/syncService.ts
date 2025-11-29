@@ -153,13 +153,28 @@ class SyncService {
 
             if (synced.dailyLogs) {
                 for (const log of synced.dailyLogs) {
-                    if (log.status === 'created' || log.status === 'already_exists') {
+                    if (log.status === 'created' || goal.status === 'already_exists') {
                         store.dispatch(markLogSynced({
                             clientId: log.clientId,
                             serverId: log.serverId
                         }));
                         store.dispatch(decrementPendingChanges());
                     }
+                }
+            }
+
+            // Import server changes (new goals/logs from server)
+            if (serverChanges) {
+                if (serverChanges.goals && serverChanges.goals.length > 0) {
+                    const { addGoalsFromServer } = require('../store/slices/goalsSlice');
+                    store.dispatch(addGoalsFromServer(serverChanges.goals));
+                    console.log(`Imported ${serverChanges.goals.length} goals from server`);
+                }
+
+                if (serverChanges.dailyLogs && serverChanges.dailyLogs.length > 0) {
+                    const { addLogsFromServer } = require('../store/slices/dailyLogsSlice');
+                    store.dispatch(addLogsFromServer(serverChanges.dailyLogs));
+                    console.log(`Imported ${serverChanges.dailyLogs.length} daily logs from server`);
                 }
             }
 

@@ -32,12 +32,14 @@ interface DailyLogsState {
     logs: DailyLog[];
     loading: boolean;
     error: string | null;
+    selectedLogId: string | null;
 }
 
 const initialState: DailyLogsState = {
     logs: [],
     loading: false,
-    error: null
+    error: null,
+    selectedLogId: null
 };
 
 const dailyLogsSlice = createSlice({
@@ -78,12 +80,37 @@ const dailyLogsSlice = createSlice({
                 log._pendingSync = false;
             }
         },
+        addLogsFromServer: (state, action: PayloadAction<DailyLog[]>) => {
+            // Add or update logs from server
+            for (const serverLog of action.payload) {
+                const existingIndex = state.logs.findIndex(l =>
+                    l.id === serverLog.id || l.clientId === serverLog.clientId
+                );
+
+                if (existingIndex !== -1) {
+                    // Update existing log
+                    state.logs[existingIndex] = {
+                        ...serverLog,
+                        _pendingSync: false
+                    };
+                } else {
+                    // Add new log from server
+                    state.logs.push({
+                        ...serverLog,
+                        _pendingSync: false
+                    });
+                }
+            }
+        },
         addAttachmentToLog: (state, action: PayloadAction<{ logClientId: string, attachment: DailyLog['attachments'][0] }>) => {
             const log = state.logs.find(l => l.clientId === action.payload.logClientId);
             if (log) {
                 log.attachments.push(action.payload.attachment);
                 log._pendingSync = true;
             }
+        },
+        selectLog: (state, action: PayloadAction<string | null>) => {
+            state.selectedLogId = action.payload;
         },
         setLoading: (state, action: PayloadAction<boolean>) => {
             state.loading = action.payload;
@@ -100,7 +127,9 @@ export const {
     deleteLogOffline,
     setLogs,
     markLogSynced,
+    addLogsFromServer,
     addAttachmentToLog,
+    selectLog,
     setLoading,
     setError
 } = dailyLogsSlice.actions;

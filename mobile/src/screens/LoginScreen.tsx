@@ -16,6 +16,7 @@ import { GlassButton } from '../components/GlassButton';
 import { theme } from '../theme/theme';
 import { authAPI } from '../services/api';
 import { setCredentials, setLoading, setError } from '../store/slices/authSlice';
+import { syncService } from '../services/syncService';
 
 const LoginScreen = ({ navigation }: any) => {
     const [email, setEmail] = useState('');
@@ -35,6 +36,12 @@ const LoginScreen = ({ navigation }: any) => {
             const { user, accessToken, refreshToken } = response.data.data;
 
             dispatch(setCredentials({ user, accessToken, refreshToken }));
+
+            // Immediately fetch server data after login
+            setTimeout(() => {
+                syncService.manualSync();
+            }, 500);
+
             navigation.replace('Main');
         } catch (error: any) {
             Alert.alert('Login Failed', error.response?.data?.message || 'Something went wrong');

@@ -76,6 +76,28 @@ const goalsSlice = createSlice({
                 goal._pendingSync = false;
             }
         },
+        addGoalsFromServer: (state, action: PayloadAction<Goal[]>) => {
+            // Add or update goals from server
+            for (const serverGoal of action.payload) {
+                const existingIndex = state.goals.findIndex(g =>
+                    g.id === serverGoal.id || g.clientId === serverGoal.clientId
+                );
+
+                if (existingIndex !== -1) {
+                    // Update existing goal  
+                    state.goals[existingIndex] = {
+                        ...serverGoal,
+                        _pendingSync: false
+                    };
+                } else {
+                    // Add new goal from server
+                    state.goals.push({
+                        ...serverGoal,
+                        _pendingSync: false
+                    });
+                }
+            }
+        },
         selectGoal: (state, action: PayloadAction<string | null>) => {
             state.selectedGoalId = action.payload;
         },
@@ -94,6 +116,7 @@ export const {
     deleteGoalOffline,
     setGoals,
     markGoalSynced,
+    addGoalsFromServer,
     selectGoal,
     setLoading,
     setError
