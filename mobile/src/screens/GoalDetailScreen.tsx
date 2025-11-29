@@ -68,30 +68,32 @@ const GoalDetailScreen = ({ route, navigation }: any) => {
         if (!goal || !stats) return;
 
         try {
-            const widgetData = {
-                goal_title: goal.title,
-                days_remaining: String(stats.daysRemaining),
-                progress: String(Math.round(stats.loggedProgress))
-            };
-
-            await SharedGroupPreferences.setItem('goal_title', widgetData.goal_title);
-            await SharedGroupPreferences.setItem('days_remaining', widgetData.days_remaining);
-            await SharedGroupPreferences.setItem('progress', widgetData.progress);
-
             if (Platform.OS === 'android') {
                 const { GoalWidgetModule } = NativeModules;
                 if (GoalWidgetModule) {
-                    GoalWidgetModule.updateWidget();
-                }
-            }
+                    // Save data via native module
+                    await GoalWidgetModule.saveWidgetData(
+                        goal.title,
+                        stats.daysRemaining,
+                        Math.round(stats.loggedProgress)
+                    );
 
-            Alert.alert(
-                'Success',
-                'Goal pinned to widget! Go to your home screen, long press, and add the "Day Tracker" widget.'
-            );
+                    // Update widget
+                    GoalWidgetModule.updateWidget();
+
+                    Alert.alert(
+                        'Success',
+                        'Goal pinned to widget! Go to your home screen, long press, and add the "Day Tracker" widget.'
+                    );
+                } else {
+                    Alert.alert('Error', 'Widget module not available');
+                }
+            } else {
+                Alert.alert('Info', 'Widgets are only available on Android');
+            }
         } catch (error) {
             console.error('Error pinning to widget:', error);
-            Alert.alert('Error', `Failed to pin goal to widget: ${error}`);
+            Alert.alert('Error', `Failed to pin goal to widget: ${JSON.stringify(error)}`);
         }
     };
 

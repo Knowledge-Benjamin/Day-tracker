@@ -14,6 +14,18 @@ class GoalWidgetModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun saveWidgetData(goalTitle: String, daysRemaining: Int, progress: Int) {
+        val context = reactApplicationContext
+        val prefs = context.getSharedPreferences("DayTrackerWidget", android.content.Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("goal_title", goalTitle)
+            putInt("days_remaining", daysRemaining)
+            putInt("progress", progress)
+            apply()
+        }
+    }
+
+    @ReactMethod
     fun updateWidget() {
         val context = reactApplicationContext
         val intent = android.content.Intent(context, GoalWidget::class.java)

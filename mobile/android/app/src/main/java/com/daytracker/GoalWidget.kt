@@ -4,38 +4,6 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
-import android.widget.RemoteViews
-
-class GoalWidget : AppWidgetProvider() {
-
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
-        }
-    }
-
-    override fun onEnabled(context: Context) {
-        // Enter relevant functionality for when the first widget is created
-    }
-
-    override fun onDisabled(context: Context) {
-        // Enter relevant functionality for when the last widget is disabled
-    }
-
-    companion object {
-        private const val PREFS_NAME = "DayTrackerWidgetPrefs"
-        private const val PREF_GOAL_TITLE = "goal_title"
-        private const val PREF_DAYS_REMAINING = "days_remaining"
-        private const val PREF_PROGRESS = "progress"
-
-        fun updateAppWidget(
-            context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
