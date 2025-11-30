@@ -18,7 +18,7 @@ const calendarSlice = createSlice({
     name: 'calendar',
     initialState,
     reducers: {
-        setGoogleCalendar Enabled: (state, action: PayloadAction<boolean>) => {
+        setGoogleCalendarEnabled: (state, action: PayloadAction<boolean>) => {
             state.googleCalendarEnabled = action.payload;
         },
         setSignedIn: (state, action: PayloadAction<boolean>) => {
