@@ -15,6 +15,7 @@ import EditGoalScreen from '../screens/EditGoalScreen';
 import GoalDetailScreen from '../screens/GoalDetailScreen';
 import DailyLogScreen from '../screens/DailyLogScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import LogDetailScreen from '../screens/LogDetailScreen';
 
 export type RootStackParamList = {
     Main: undefined;
@@ -22,6 +23,7 @@ export type RootStackParamList = {
     EditGoal: { goalClientId: string };
     GoalDetail: { goalClientId: string };
     DailyLog: { goalClientId: string };
+    LogDetail: { date: string };
     Login: undefined;
     Register: undefined;
 };
@@ -104,6 +106,11 @@ const AppNavigator = () => {
                             name="DailyLog"
                             component={DailyLogScreen}
                             options={{ title: 'Daily Log' }}
+                        />
+                        <Stack.Screen
+                            name="LogDetail"
+                            component={LogDetailScreen}
+                            options={{ title: 'Log Details' }}
                         />
                     </>
                 ) : (
