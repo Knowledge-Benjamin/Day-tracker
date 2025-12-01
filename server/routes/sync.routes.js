@@ -215,15 +215,111 @@ router.post('/sync', async (req, res) => {
                 [req.user.id, lastSyncAt]
             );
 
-            serverChanges.dailyLogs = logsResult.rows.map(row => ({
+            // Fetch related data for each log
+            serverChanges.dailyLogs = await Promise.all(logsResult.rows.map(async (row) => {
+                let activities = [], goodThings = [], futurePlans = [], attachments = [];
+
+                if (row.deleted_at === null) {
+                    [activities, goodThings, futurePlans, attachments] = await Promise.all([
+                        query('SELECT id, activity FROM log_activities WHERE daily_log_id = $1', [row.id]),
+                        query('SELECT id, description FROM log_good_things WHERE daily_log_id = $1', [row.id]),
+                        query('SELECT id, title, description, planned_date, google_calendar_event_id FROM log_future_plans WHERE daily_log_id = $1', [row.id]),
+                        query('SELECT id, file_name, file_path, file_type, file_size FROM attachments WHERE daily_log_id = $1', [row.id])
+                    ]);
+                }
+
+                return {
+                    id: row.id,
+                    goalId: row.goal_id,
+                    goalClientId: row.goal_client_id,
+                    logDate: row.log_date,
+                    notes: row.notes,
+                    clientId: row.client_id,
+                    updatedAt: row.updated_at,
+                    isDeleted: row.deleted_at !== null,
+                    activities: activities.rows ? activities.rows.map(a => ({ id: a.id, activity: a.activity })) : [],
+                    goodThings: goodThings.rows ? goodThings.rows.map(g => ({ id: g.id, description: g.description })) : [],
+                    futurePlans: futurePlans.rows ? futurePlans.rows.map(f => ({
+                        id: f.id,
+                        title: f.title,
+                        description: f.description,
+                        plannedDate: f.planned_date,
+                        googleCalendarEventId: f.google_calendar_event_id
+                    })) : [],
+                    attachments: attachments.rows ? attachments.rows.map(a => ({
+                        id: a.id,
+                        fileName: a.file_name,
+                        filePath: a.file_path,
+                        fileType: a.file_type,
+                        fileSize: a.file_size
+                    })) : []
+                };
+            }));
+        } else {
+            // Initial sync - fetch ALL data
+            const goalsResult = await query(
+                `SELECT id, title, description, start_date, duration_days, color, is_active, client_id, updated_at, deleted_at
+         FROM goals
+         WHERE user_id = $1 AND deleted_at IS NULL`,
+                [req.user.id]
+            );
+
+            serverChanges.goals = goalsResult.rows.map(row => ({
                 id: row.id,
-                goalId: row.goal_id,
-                goalClientId: row.goal_client_id,
-                logDate: row.log_date,
-                notes: row.notes,
+                title: row.title,
+                description: row.description,
+                startDate: row.start_date,
+                durationDays: row.duration_days,
+                color: row.color,
+                isActive: row.is_active,
                 clientId: row.client_id,
                 updatedAt: row.updated_at,
-                isDeleted: row.deleted_at !== null
+                isDeleted: false
+            }));
+
+            const logsResult = await query(
+                `SELECT dl.id, dl.goal_id, dl.log_date, dl.notes, dl.client_id, dl.updated_at, dl.deleted_at,
+                g.client_id as goal_client_id
+         FROM daily_logs dl
+         JOIN goals g ON dl.goal_id = g.id
+         WHERE g.user_id = $1 AND dl.deleted_at IS NULL`,
+                [req.user.id]
+            );
+
+            serverChanges.dailyLogs = await Promise.all(logsResult.rows.map(async (row) => {
+                const [activities, goodThings, futurePlans, attachments] = await Promise.all([
+                    query('SELECT id, activity FROM log_activities WHERE daily_log_id = $1', [row.id]),
+                    query('SELECT id, description FROM log_good_things WHERE daily_log_id = $1', [row.id]),
+                    query('SELECT id, title, description, planned_date, google_calendar_event_id FROM log_future_plans WHERE daily_log_id = $1', [row.id]),
+                    query('SELECT id, file_name, file_path, file_type, file_size FROM attachments WHERE daily_log_id = $1', [row.id])
+                ]);
+
+                return {
+                    id: row.id,
+                    goalId: row.goal_id,
+                    goalClientId: row.goal_client_id,
+                    logDate: row.log_date,
+                    notes: row.notes,
+                    clientId: row.client_id,
+                    updatedAt: row.updated_at,
+                    isDeleted: false,
+                    activities: activities.rows.map(a => ({ id: a.id, activity: a.activity })),
+                    goodThings: goodThings.rows.map(g => ({ id: g.id, description: g.description })),
+                    futurePlans: futurePlans.rows.map(f => ({
+                        id: f.id,
+                        title: f.title,
+                        description: f.description,
+                        plannedDate: f.planned_date,
+                        googleCalendarEventId: f.google_calendar_event_id
+                    })),
+                    attachments: attachments.rows.map(a => ({
+                        id: a.id,
+                        fileName: a.file_name,
+                        filePath: a.file_path,
+                        fileType: a.file_type,
+                        fileSize: a.file_size
+                    }))
+                };
             }));
         }
 

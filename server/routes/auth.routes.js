@@ -85,7 +85,9 @@ router.post('/register', async (req, res) => {
                     id: user.id,
                     email: user.email,
                     name: user.name,
-                    createdAt: user.created_at
+                    name: user.name,
+                    createdAt: user.created_at,
+                    updatedAt: user.created_at
                 },
                 accessToken,
                 refreshToken
@@ -116,7 +118,7 @@ router.post('/login', async (req, res) => {
 
         // Find user
         const result = await query(
-            'SELECT id, email, password_hash, name FROM users WHERE email = $1',
+            'SELECT id, email, password_hash, name, created_at FROM users WHERE email = $1',
             [email]
         );
 
@@ -155,7 +157,10 @@ router.post('/login', async (req, res) => {
                 user: {
                     id: user.id,
                     email: user.email,
-                    name: user.name
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    createdAt: user.created_at || new Date().toISOString() // Fallback if not selected
                 },
                 accessToken,
                 refreshToken

@@ -282,7 +282,11 @@ router.post('/', async (req, res) => {
                 notes: result.notes,
                 createdAt: result.created_at,
                 updatedAt: result.updated_at,
-                clientId: result.client_id
+                clientId: result.client_id,
+                activities: activities || [],
+                goodThings: goodThings || [],
+                futurePlans: futurePlans || [],
+                attachments: [] // Attachments are uploaded separately
             }
         });
     } catch (error) {

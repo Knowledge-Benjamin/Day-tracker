@@ -173,7 +173,29 @@ class SyncService {
 
                 if (serverChanges.dailyLogs && serverChanges.dailyLogs.length > 0) {
                     const { addLogsFromServer } = require('../store/slices/dailyLogsSlice');
-                    store.dispatch(addLogsFromServer(serverChanges.dailyLogs));
+                    // Transform server logs to match client format
+                    const transformedLogs = serverChanges.dailyLogs.map((log: any) => ({
+                        id: log.id,
+                        clientId: log.clientId,
+                        goalId: log.goalId,
+                        goalClientId: log.goalClientId,
+                        logDate: log.logDate,
+                        notes: log.notes,
+                        // Transform activities from objects to strings
+                        activities: log.activities ? log.activities.map((a: any) =>
+                            typeof a === 'string' ? a : a.activity
+                        ) : [],
+                        // Transform goodThings from objects to strings
+                        goodThings: log.goodThings ? log.goodThings.map((g: any) =>
+                            typeof g === 'string' ? g : g.description
+                        ) : [],
+                        // Keep futurePlans as is (already in correct format)
+                        futurePlans: log.futurePlans || [],
+                        attachments: log.attachments || [],
+                        createdAt: log.createdAt,
+                        updatedAt: log.updatedAt
+                    }));
+                    store.dispatch(addLogsFromServer(transformedLogs));
                     console.log(`Imported ${serverChanges.dailyLogs.length} daily logs from server`);
                 }
             }

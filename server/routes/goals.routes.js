@@ -224,7 +224,10 @@ router.put('/:id', async (req, res) => {
                 color: goal.color,
                 isActive: goal.is_active,
                 updatedAt: goal.updated_at,
-                clientId: goal.client_id
+                clientId: goal.client_id,
+                loggedDays: 0, // Recalculate if needed, but usually 0 or unchanged for metadata updates
+                progress: 0,
+                daysRemaining: goal.duration_days
             }
         });
     } catch (error) {

@@ -1,30 +1,54 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { persistStore, persistReducer } from 'redux-persist';
+import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import goalsReducer from './slices/goalsSlice';
 import dailyLogsReducer from './slices/dailyLogsSlice';
 import authReducer from './slices/authSlice';
 import syncReducer from './slices/syncSlice';
 import calendarReducer from './slices/calendarSlice';
 
-const persistConfig = {
-    key: 'root',
+// Create individual persist configs
+const authPersistConfig: any = {
+    key: 'auth',
     storage: AsyncStorage,
-    whitelist: ['auth', 'goals', 'dailyLogs', 'calendar'] // Persist these reducers
 };
 
+const goalsPersistConfig: any = {
+    key: 'goals',
+    storage: AsyncStorage,
+};
+
+const dailyLogsPersistConfig: any = {
+    key: 'dailyLogs',
+    storage: AsyncStorage,
+};
+
+const calendarPersistConfig: any = {
+    key: 'calendar',
+    storage: AsyncStorage,
+};
+
+// Create persisted reducers
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+const persistedGoalsReducer = persistReducer(goalsPersistConfig, goalsReducer);
+const persistedDailyLogsReducer = persistReducer(dailyLogsPersistConfig, dailyLogsReducer);
+const persistedCalendarReducer = persistReducer(calendarPersistConfig, calendarReducer);
+
+// Combine all reducers
+const rootReducer = combineReducers({
+    auth: persistedAuthReducer,
+    goals: persistedGoalsReducer,
+    dailyLogs: persistedDailyLogsReducer,
+    calendar: persistedCalendarReducer,
+    sync: syncReducer,
+});
+
 export const store = configureStore({
-    reducer: {
-        auth: persistReducer({ ...persistConfig, key: 'auth' }, authReducer),
-        goals: persistReducer({ ...persistConfig, key: 'goals' }, goalsReducer),
-        dailyLogs: persistReducer({ ...persistConfig, key: 'dailyLogs' }, dailyLogsReducer),
-        calendar: persistReducer({ ...persistConfig, key: 'calendar' }, calendarReducer),
-        sync: syncReducer
-    },
+    reducer: rootReducer,
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: {
-                ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+                ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
             },
         }),
 });
