@@ -14,6 +14,7 @@ export interface DailyLog {
         title: string;
         description?: string;
         plannedDate?: string;
+        googleCalendarEventId?: string;
     }>;
     attachments: Array<{
         id?: number;
@@ -22,6 +23,7 @@ export interface DailyLog {
         fileType?: string;
         fileSize?: number;
     }>;
+    googleCalendarEventId?: string; // Google Calendar event ID for sync
     createdAt?: string;
     updatedAt?: string;
     _pendingSync?: boolean;
@@ -46,10 +48,10 @@ const dailyLogsSlice = createSlice({
     name: 'dailyLogs',
     initialState,
     reducers: {
-        addLogOffline: (state, action: PayloadAction<Omit<DailyLog, 'clientId'>>) => {
+        addLogOffline: (state, action: PayloadAction<Omit<DailyLog, 'clientId'> & { clientId?: string }>) => {
             const newLog: DailyLog = {
-                ...action.payload,
                 clientId: uuidv4(),
+                ...action.payload,
                 _pendingSync: true
             };
             state.logs.push(newLog);
@@ -61,6 +63,20 @@ const dailyLogsSlice = createSlice({
                     ...action.payload,
                     _pendingSync: true
                 };
+            }
+        },
+        setGoogleCalendarEventId: (state, action: PayloadAction<{ clientId: string, eventId: string }>) => {
+            const log = state.logs.find(l => l.clientId === action.payload.clientId);
+            if (log) {
+                log.googleCalendarEventId = action.payload.eventId;
+                log._pendingSync = true;
+            }
+        },
+        setFuturePlanEventId: (state, action: PayloadAction<{ clientId: string, planIndex: number, eventId: string }>) => {
+            const log = state.logs.find(l => l.clientId === action.payload.clientId);
+            if (log && log.futurePlans[action.payload.planIndex]) {
+                log.futurePlans[action.payload.planIndex].googleCalendarEventId = action.payload.eventId;
+                log._pendingSync = true;
             }
         },
         deleteLogOffline: (state, action: PayloadAction<string>) => {
@@ -124,6 +140,8 @@ const dailyLogsSlice = createSlice({
 export const {
     addLogOffline,
     updateLogOffline,
+    setGoogleCalendarEventId,
+    setFuturePlanEventId,
     deleteLogOffline,
     setLogs,
     markLogSynced,

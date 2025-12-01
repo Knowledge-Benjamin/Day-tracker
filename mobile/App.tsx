@@ -4,17 +4,19 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/store';
 import { syncService } from './src/services/syncService';
 import { googleCalendarService } from './src/services/googleCalendarService';
-import { GOOGLE_ANDROID_CLIENT_ID } from '@env';
+import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import AppNavigator from './src/navigation/AppNavigator';
 
 // Initialize sync service
 syncService.init();
 
 // Initialize Google Calendar service
-if (GOOGLE_ANDROID_CLIENT_ID) {
-    googleCalendarService.configure(GOOGLE_ANDROID_CLIENT_ID).catch(err => {
+if (GOOGLE_WEB_CLIENT_ID) {
+    googleCalendarService.configure(GOOGLE_WEB_CLIENT_ID).catch(err => {
         console.error('Failed to configure Google Calendar:', err);
     });
+} else {
+    console.warn('Google Calendar not configured: Missing GOOGLE_WEB_CLIENT_ID in .env');
 }
 
 const App = () => {

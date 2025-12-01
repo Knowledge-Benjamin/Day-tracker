@@ -76,9 +76,13 @@ const LogDetailScreen = () => {
                                         {goal?.title || 'Unknown Goal'}
                                     </Text>
                                     <TouchableOpacity
-                                        onPress={() => goal && navigation.navigate('GoalDetail' as any, {
-                                            goalClientId: goal.clientId
-                                        })}
+                                        onPress={() => {
+                                            if (goal) {
+                                                navigation.navigate('GoalDetail' as any, {
+                                                    goalClientId: goal.clientId
+                                                });
+                                            }
+                                        }}
                                     >
                                         <Text style={styles.viewGoalText}>View Goal →</Text>
                                     </TouchableOpacity>

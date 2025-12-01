@@ -115,10 +115,10 @@ router.post('/sync', async (req, res) => {
                                     const goalId = goalResult.rows[0].id;
 
                                     const logResult = await client.query(
-                                        `INSERT INTO daily_logs (goal_id, user_id, log_date, notes, client_id)
-                     VALUES ($1, $2, $3, $4, $5)
+                                        `INSERT INTO daily_logs (goal_id, user_id, log_date, notes, client_id, google_calendar_event_id)
+                     VALUES ($1, $2, $3, $4, $5, $6)
                      RETURNING id`,
-                                        [goalId, req.user.id, data.logDate, data.notes, clientId]
+                                        [goalId, req.user.id, data.logDate, data.notes, clientId, data.googleCalendarEventId || null]
                                     );
 
                                     const dailyLogId = logResult.rows[0].id;
@@ -145,8 +145,8 @@ router.post('/sync', async (req, res) => {
                                     if (data.futurePlans) {
                                         for (const plan of data.futurePlans) {
                                             await client.query(
-                                                'INSERT INTO log_future_plans (daily_log_id, title, description, planned_date) VALUES ($1, $2, $3, $4)',
-                                                [dailyLogId, plan.title, plan.description, plan.plannedDate]
+                                                'INSERT INTO log_future_plans (daily_log_id, title, description, planned_date, google_calendar_event_id) VALUES ($1, $2, $3, $4, $5)',
+                                                [dailyLogId, plan.title, plan.description, plan.plannedDate, plan.googleCalendarEventId || null]
                                             );
                                         }
                                     }
@@ -207,7 +207,7 @@ router.post('/sync', async (req, res) => {
 
             // Get daily logs updated since last sync
             const logsResult = await query(
-                `SELECT dl.id, dl.goal_id, dl.log_date, dl.notes, dl.client_id, dl.updated_at, dl.deleted_at,
+                `SELECT dl.id, dl.goal_id, dl.log_date, dl.notes, dl.client_id, dl.updated_at, dl.deleted_at, dl.google_calendar_event_id,
                 g.client_id as goal_client_id
          FROM daily_logs dl
          JOIN goals g ON dl.goal_id = g.id
@@ -235,6 +235,7 @@ router.post('/sync', async (req, res) => {
                     logDate: row.log_date,
                     notes: row.notes,
                     clientId: row.client_id,
+                    googleCalendarEventId: row.google_calendar_event_id,
                     updatedAt: row.updated_at,
                     isDeleted: row.deleted_at !== null,
                     activities: activities.rows ? activities.rows.map(a => ({ id: a.id, activity: a.activity })) : [],
@@ -278,7 +279,7 @@ router.post('/sync', async (req, res) => {
             }));
 
             const logsResult = await query(
-                `SELECT dl.id, dl.goal_id, dl.log_date, dl.notes, dl.client_id, dl.updated_at, dl.deleted_at,
+                `SELECT dl.id, dl.goal_id, dl.log_date, dl.notes, dl.client_id, dl.updated_at, dl.deleted_at, dl.google_calendar_event_id,
                 g.client_id as goal_client_id
          FROM daily_logs dl
          JOIN goals g ON dl.goal_id = g.id
@@ -301,6 +302,7 @@ router.post('/sync', async (req, res) => {
                     logDate: row.log_date,
                     notes: row.notes,
                     clientId: row.client_id,
+                    googleCalendarEventId: row.google_calendar_event_id,
                     updatedAt: row.updated_at,
                     isDeleted: false,
                     activities: activities.rows.map(a => ({ id: a.id, activity: a.activity })),

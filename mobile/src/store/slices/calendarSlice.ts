@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface CalendarState {
+export interface CalendarState {
     googleCalendarEnabled: boolean;
     isSignedIn: boolean;
     calendarId: string;

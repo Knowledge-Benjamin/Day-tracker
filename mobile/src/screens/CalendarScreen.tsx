@@ -14,14 +14,14 @@ import { GlassCard } from '../components/GlassCard';
 import { theme } from '../theme/theme';
 import { RootState } from '../store';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { setSelectedGoalFilter } from '../store/slices/calendarSlice';
+import { setSelectedGoalFilter, CalendarState } from '../store/slices/calendarSlice';
 
 const CalendarScreen = ({ navigation }: any) => {
     const dispatch = useDispatch();
     const logs = useSelector((state: RootState) => state.dailyLogs.logs);
     const goals = useSelector((state: RootState) => state.goals.goals);
-    const { selectedGoalFilter, isSignedIn, googleCalendarEnabled } = useSelector(
-        (state: RootState) => state.calendar
+    const { selectedGoalFilter, isSignedIn, googleCalendarEnabled } = useSelector<RootState, CalendarState>(
+        (state) => state.calendar
     );
 
     const activeGoals = goals.filter(g => !g._deleted);
@@ -78,11 +78,15 @@ const CalendarScreen = ({ navigation }: any) => {
 
         let currentStreak = 1;
         for (let i = 1; i < sortedDates.length; i++) {
-            const diff = differenceInCalendarDays(sortedDates[i - 1], sortedDates[i]);
-            if (diff === 1) {
-                currentStreak++;
-            } else {
-                break;
+            const prevDate = sortedDates[i - 1];
+            const currDate = sortedDates[i];
+            if (prevDate && currDate) {
+                const diff = differenceInCalendarDays(prevDate, currDate);
+                if (diff === 1) {
+                    currentStreak++;
+                } else {
+                    break;
+                }
             }
         }
 
@@ -117,6 +121,12 @@ const CalendarScreen = ({ navigation }: any) => {
                                 {streak > 0 && ` • ${streak} day streak 🔥`}
                             </Text>
                         </View>
+                        <TouchableOpacity
+                            style={styles.settingsButton}
+                            onPress={() => navigation.navigate('CalendarSettings' as any)}
+                        >
+                            <Text style={styles.settingsIcon}>⚙️</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Google Calendar Status */}
@@ -252,6 +262,14 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.md,
         color: theme.colors.gray400
     },
+    settingsButton: {
+        padding: theme.spacing.sm,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.glassDarkLight
+    },
+    settingsIcon: {
+        fontSize: 24
+    },
     statusCard: {
         marginBottom: theme.spacing.md,
         padding: theme.spacing.md
@@ -278,7 +296,7 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.glassDarkLight,
         paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.sm,
-        borderRadius: theme.borderRadius.full,
+        borderRadius: theme.borderRadius.round,
         marginRight: theme.spacing.sm,
         borderWidth: 1,
         borderColor: theme.colors.borderLight

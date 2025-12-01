@@ -12,14 +12,16 @@ import {
     Image
 } from 'react-native';
 import { launchImageLibrary, launchCamera, Asset } from 'react-native-image-picker';
+import { v4 as uuidv4 } from 'uuid';
 import { useDispatch, useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import DatePicker from 'react-native-date-picker';
 import { format, startOfDay, parseISO, isAfter, isBefore } from 'date-fns';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootState } from '../store';
-import { addLogOffline } from '../store/slices/dailyLogsSlice';
+import { addLogOffline, setGoogleCalendarEventId, setFuturePlanEventId } from '../store/slices/dailyLogsSlice';
 import { incrementPendingChanges } from '../store/slices/syncSlice';
+import { googleCalendarService } from '../services/googleCalendarService';
 import { GlassInput } from '../components/GlassInput';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
@@ -39,6 +41,9 @@ const DailyLogScreen = () => {
     );
     const existingLogs = useSelector((state: RootState) =>
         state.dailyLogs.logs.filter(l => l.goalClientId === goalClientId && !l._deleted)
+    );
+    const { googleCalendarEnabled, isSignedIn, autoSync, calendarId } = useSelector(
+        (state: RootState) => state.calendar
     );
 
     const [logDate, setLogDate] = useState(new Date());
@@ -207,7 +212,7 @@ const DailyLogScreen = () => {
         setAttachments(attachments.filter((_, i) => i !== index));
     };
 
-    const handleSaveLog = () => {
+    const handleSaveLog = async () => {
         if (!validateDate(logDate)) {
             return;
         }
@@ -217,9 +222,13 @@ const DailyLogScreen = () => {
             return;
         }
 
+        const clientId = uuidv4();
+        const formattedDate = format(logDate, 'yyyy-MM-dd');
+
         dispatch(addLogOffline({
+            clientId,
             goalClientId,
-            logDate: format(logDate, 'yyyy-MM-dd'),
+            logDate: formattedDate,
             notes: notes.trim() || undefined,
             activities,
             goodThings,
@@ -229,7 +238,60 @@ const DailyLogScreen = () => {
 
         dispatch(incrementPendingChanges());
 
-        Alert.alert('Success', 'Daily log saved! It will sync when online.', [
+        // Google Calendar Sync
+        if (googleCalendarEnabled && isSignedIn && autoSync && goal) {
+            try {
+                // Sync Daily Log
+                const result = await googleCalendarService.createEvent(
+                    goal.title,
+                    formattedDate,
+                    notes.trim() || undefined,
+                    activities,
+                    calendarId
+                );
+
+                if (result.success && result.eventId) {
+                    dispatch(setGoogleCalendarEventId({
+                        clientId,
+                        eventId: result.eventId
+                    }));
+                } else if (result.error) {
+                    console.error('Google Calendar Sync Failed:', result.error);
+                }
+
+                // Sync Future Plans
+                if (futurePlans.length > 0) {
+                    for (let index = 0; index < futurePlans.length; index++) {
+                        const plan = futurePlans[index];
+                        if (plan.plannedDate) {
+                            try {
+                                const planResult = await googleCalendarService.createEvent(
+                                    `Plan: ${plan.title}`,
+                                    plan.plannedDate,
+                                    plan.description,
+                                    [],
+                                    calendarId
+                                );
+
+                                if (planResult.success && planResult.eventId) {
+                                    dispatch(setFuturePlanEventId({
+                                        clientId,
+                                        planIndex: index,
+                                        eventId: planResult.eventId
+                                    }));
+                                }
+                            } catch (error) {
+                                console.error('Future Plan Sync Error:', error);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Google Calendar Sync Error:', error);
+            }
+        }
+
+        Alert.alert('Success', 'Daily log saved!', [
             { text: 'OK', onPress: () => navigation.goBack() }
         ]);
     };

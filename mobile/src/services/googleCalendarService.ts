@@ -2,6 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { API_BASE_URL } from '@env';
+import { store } from '../store';
+import { setSignedIn, setLastSyncTime } from '../store/slices/calendarSlice';
 
 interface CalendarEvent {
     summary: string;
@@ -54,6 +56,7 @@ class GoogleCalendarService {
             await AsyncStorage.setItem('google_calendar_token', tokens.accessToken);
             await AsyncStorage.setItem('google_calendar_refresh_token', tokens.idToken || '');
 
+            store.dispatch(setSignedIn(true));
             console.log('Google Calendar signed in successfully');
             return true;
         } catch (error) {
@@ -71,6 +74,7 @@ class GoogleCalendarService {
             this.accessToken = null;
             await AsyncStorage.removeItem('google_calendar_token');
             await AsyncStorage.removeItem('google_calendar_refresh_token');
+            store.dispatch(setSignedIn(false));
             console.log('Google Calendar signed out');
         } catch (error) {
             console.error('Error signing out:', error);
@@ -86,6 +90,7 @@ class GoogleCalendarService {
             if (userInfo) {
                 const tokens = await GoogleSignin.getTokens();
                 this.accessToken = tokens.accessToken;
+                store.dispatch(setSignedIn(true));
                 return true;
             }
             return false;
@@ -98,12 +103,22 @@ class GoogleCalendarService {
      * Get stored access token
      */
     private async getAccessToken(): Promise<string | null> {
-        if (this.accessToken) return this.accessToken;
+        try {
+            // Try to get fresh tokens from GoogleSignin
+            // This handles expiration automatically
+            const tokens = await GoogleSignin.getTokens();
+            this.accessToken = tokens.accessToken;
+            await AsyncStorage.setItem('google_calendar_token', tokens.accessToken);
+            return tokens.accessToken;
+        } catch (error) {
+            // Fallback to stored token if GoogleSignin fails (e.g. network error)
+            if (this.accessToken) return this.accessToken;
 
-        const stored = await AsyncStorage.getItem('google_calendar_token');
-        if (stored) {
-            this.accessToken = stored;
-            return stored;
+            const stored = await AsyncStorage.getItem('google_calendar_token');
+            if (stored) {
+                this.accessToken = stored;
+                return stored;
+            }
         }
 
         return null;
@@ -146,6 +161,7 @@ class GoogleCalendarService {
                 }
             );
 
+            store.dispatch(setLastSyncTime(new Date().toISOString()));
             console.log('Calendar event created:', response.data.id);
             return { success: true, eventId: response.data.id };
         } catch (error: any) {
@@ -195,6 +211,7 @@ class GoogleCalendarService {
                 }
             );
 
+            store.dispatch(setLastSyncTime(new Date().toISOString()));
             console.log('Calendar event updated:', eventId);
             return { success: true };
         } catch (error: any) {
@@ -228,6 +245,7 @@ class GoogleCalendarService {
                 }
             );
 
+            store.dispatch(setLastSyncTime(new Date().toISOString()));
             console.log('Calendar event deleted:', eventId);
             return { success: true };
         } catch (error: any) {

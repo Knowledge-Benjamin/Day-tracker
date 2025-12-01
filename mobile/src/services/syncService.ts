@@ -209,6 +209,11 @@ class SyncService {
             // Update sync timestamp
             store.dispatch(setSyncCompleted(syncedAt));
 
+            // Retry Google Calendar Sync
+            this.retryGoogleCalendarSync().catch(err =>
+                console.error('Google Calendar retry sync error:', err)
+            );
+
             console.log('Sync completed successfully');
         } catch (error: any) {
             console.error('Sync error:', error);
@@ -221,6 +226,84 @@ class SyncService {
     // Manual sync trigger
     async manualSync() {
         await this.sync();
+    }
+
+    async retryGoogleCalendarSync() {
+        const state = store.getState();
+        const { googleCalendarEnabled, isSignedIn, autoSync, calendarId } = state.calendar;
+
+        if (!googleCalendarEnabled || !isSignedIn || !autoSync) return;
+
+        // Find logs created in last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const logs = state.dailyLogs.logs.filter(l =>
+            !l._deleted &&
+            new Date(l.logDate) >= thirtyDaysAgo
+        );
+
+        if (logs.length === 0) return;
+
+        console.log(`Checking Google Calendar sync for ${logs.length} logs`);
+
+        const { googleCalendarService } = require('./googleCalendarService');
+        const { setGoogleCalendarEventId, setFuturePlanEventId } = require('../store/slices/dailyLogsSlice');
+
+        for (const log of logs) {
+            const goal = state.goals.goals.find(g => g.clientId === log.goalClientId);
+            if (!goal) continue;
+
+            // Sync Log if missing ID
+            if (!log.googleCalendarEventId) {
+                try {
+                    const result = await googleCalendarService.createEvent(
+                        goal.title,
+                        log.logDate,
+                        log.notes,
+                        log.activities,
+                        calendarId
+                    );
+
+                    if (result.success && result.eventId) {
+                        store.dispatch(setGoogleCalendarEventId({
+                            clientId: log.clientId,
+                            eventId: result.eventId
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Retry Google Calendar sync failed for log:', log.clientId, error);
+                }
+            }
+
+            // Sync Future Plans if missing ID
+            if (log.futurePlans && log.futurePlans.length > 0) {
+                for (let index = 0; index < log.futurePlans.length; index++) {
+                    const plan = log.futurePlans[index];
+                    if (plan.plannedDate && !plan.googleCalendarEventId) {
+                        try {
+                            const planResult = await googleCalendarService.createEvent(
+                                `Plan: ${plan.title}`,
+                                plan.plannedDate,
+                                plan.description,
+                                [],
+                                calendarId
+                            );
+
+                            if (planResult.success && planResult.eventId) {
+                                store.dispatch(setFuturePlanEventId({
+                                    clientId: log.clientId,
+                                    planIndex: index,
+                                    eventId: planResult.eventId
+                                }));
+                            }
+                        } catch (error) {
+                            console.error('Retry Future Plan sync failed:', error);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
