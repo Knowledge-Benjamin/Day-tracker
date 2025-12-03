@@ -17,10 +17,13 @@ import { theme } from '../theme/theme';
 import { RootState } from '../store';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
+import { StackNavigationProp } from '@react-navigation/stack';
+
 type LogDetailScreenRouteProp = RouteProp<RootStackParamList, 'LogDetail'>;
+type LogDetailScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const LogDetailScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useNavigation<LogDetailScreenNavigationProp>();
     const route = useRoute<LogDetailScreenRouteProp>();
     const { date } = route.params;
 
