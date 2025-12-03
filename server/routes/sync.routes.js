@@ -367,4 +367,18 @@ router.get('/status', async (req, res) => {
     }
 });
 
+// TEMPORARY: Migration route
+router.get('/migrate', async (req, res) => {
+    try {
+        await transaction(async (client) => {
+            await client.query('ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS google_calendar_event_id VARCHAR(255)');
+            await client.query('ALTER TABLE log_future_plans ADD COLUMN IF NOT EXISTS google_calendar_event_id VARCHAR(255)');
+        });
+        res.json({ success: true, message: 'Migration completed' });
+    } catch (error) {
+        console.error('Migration error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
