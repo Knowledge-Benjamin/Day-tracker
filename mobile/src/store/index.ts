@@ -6,6 +6,7 @@ import dailyLogsReducer from './slices/dailyLogsSlice';
 import authReducer from './slices/authSlice';
 import syncReducer from './slices/syncSlice';
 import calendarReducer from './slices/calendarSlice';
+import calosReducer from './slices/calosSlice';
 
 // Create individual persist configs
 const authPersistConfig: any = {
@@ -28,11 +29,18 @@ const calendarPersistConfig: any = {
     storage: AsyncStorage,
 };
 
+const calosPersistConfig: any = {
+    key: 'calos',
+    storage: AsyncStorage,
+    whitelist: ['messages', 'sessionId', 'preferences'], // Only persist these fields
+};
+
 // Create persisted reducers
 const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
 const persistedGoalsReducer = persistReducer(goalsPersistConfig, goalsReducer);
 const persistedDailyLogsReducer = persistReducer(dailyLogsPersistConfig, dailyLogsReducer);
 const persistedCalendarReducer = persistReducer(calendarPersistConfig, calendarReducer);
+const persistedCalosReducer = persistReducer(calosPersistConfig, calosReducer);
 
 // Combine all reducers
 const rootReducer = combineReducers({
@@ -40,6 +48,7 @@ const rootReducer = combineReducers({
     goals: persistedGoalsReducer,
     dailyLogs: persistedDailyLogsReducer,
     calendar: persistedCalendarReducer,
+    calos: persistedCalosReducer,
     sync: syncReducer,
 });
 

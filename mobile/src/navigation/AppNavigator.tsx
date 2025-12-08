@@ -17,6 +17,7 @@ import DailyLogScreen from '../screens/DailyLogScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import LogDetailScreen from '../screens/LogDetailScreen';
 import CalendarSettingsScreen from '../screens/CalendarSettingsScreen';
+import CalosScreen from '../screens/CalosScreen';
 
 export type RootStackParamList = {
     Main: undefined;
@@ -61,6 +62,11 @@ const MainTabs = () => {
                 name="Calendar"
                 component={CalendarScreen}
                 options={{ title: 'Calendar' }}
+            />
+            <Tab.Screen
+                name="Calos"
+                component={CalosScreen}
+                options={{ title: 'Calos AI' }}
             />
         </Tab.Navigator>
     );
