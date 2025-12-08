@@ -35,7 +35,7 @@ PORT=3002
 NODE_ENV=production
 
 # Database (Shared with Day Tracker - Neon)
-DATABASE_URL=postgresql://neondb_owner:npg_IOfrh4Vpz3Wa@ep-lively-dew-ad0veyh7-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=<YOUR_DATABASE_URL>
 
 # JWT (MUST MATCH Day Tracker)
 JWT_SECRET=<COPY_FROM_DAY_TRACKER_RENDER>

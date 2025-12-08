@@ -3,7 +3,7 @@
 ## Connection String
 
 ```bash
-postgresql://neondb_owner:npg_IOfrh4Vpz3Wa@ep-lively-dew-ad0veyh7-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+<YOUR_DATABASE_URL>
 ```
 
 ## Option 1: Using Neon Console (Recommended)
@@ -19,10 +19,10 @@ postgresql://neondb_owner:npg_IOfrh4Vpz3Wa@ep-lively-dew-ad0veyh7-pooler.c-2.us-
 
 ```bash
 # Run migration
-psql "postgresql://neondb_owner:npg_IOfrh4Vpz3Wa@ep-lively-dew-ad0veyh7-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require" -f database/calos_migration.sql
+psql "<YOUR_DATABASE_URL>" -f database/calos_migration.sql
 
 # Verify tables were created
-psql "postgresql://neondb_owner:npg_IOfrh4Vpz3Wa@ep-lively-dew-ad0veyh7-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require" -c "\dt ai_*"
+psql "<YOUR_DATABASE_URL>" -c "\dt ai_*"
 ```
 
 ## Option 3: Using Node.js Script
