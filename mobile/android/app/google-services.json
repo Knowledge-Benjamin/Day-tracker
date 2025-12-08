@@ -1,31 +1,36 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "day-tracker-placeholder",
-    "storage_bucket": "day-tracker-placeholder.appspot.com"
+    "project_number": "588471853760",
+    "project_id": "day-tracker-479521",
+    "storage_bucket": "day-tracker-479521.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:588471853760:android:c4b1059eec639eeac38325",
         "android_client_info": {
           "package_name": "com.daytracker"
         }
       },
       "oauth_client": [
         {
-          "client_id": "PLACEHOLDER_CLIENT_ID.apps.googleusercontent.com",
+          "client_id": "588471853760-fq6aitsu8dtc4o56u7h64ml5ovjd5r4j.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_API_KEY"
+          "current_key": "AIzaSyAM-XYPi8Cu8L-D8EzhM_8ZqqQ7sL8_G1g"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "588471853760-fq6aitsu8dtc4o56u7h64ml5ovjd5r4j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

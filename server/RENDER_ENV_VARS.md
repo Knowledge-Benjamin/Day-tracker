@@ -25,10 +25,16 @@ MAX_FILE_SIZE=10485760
 
 ```bash
 # Google OAuth (If using calendar integration)
-GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=https://your-app.onrender.com/api/auth/google/callback
+# Get these from your Google Cloud Console
+GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI=https://day-tracker-93ly.onrender.com/api/auth/google/callback
 ```
+
+> [!IMPORTANT]
+> - Get your actual `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from [Google Cloud Console](https://console.cloud.google.com/)
+> - The `GOOGLE_REDIRECT_URI` **must** match your production URL
+> - For this deployment: `https://day-tracker-93ly.onrender.com/api/auth/google/callback`
 
 ---
 
