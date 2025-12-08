@@ -81,7 +81,7 @@ const CalosScreen = () => {
         if (!sessionId) return;
         try {
             const history = await calosService.getHistory(sessionId);
-            // Convert to Message format and dispatch if needed
+            // Conversion logic would go here
         } catch (error) {
             console.error('Error loading history:', error);
         }
@@ -93,51 +93,53 @@ const CalosScreen = () => {
             return;
         }
 
-        if (!permissionsGranted.microphone) {
-            const granted = await voiceService.requestMicrophonePermission();
-            dispatch(setPermissions({ microphone: granted }));
-            if (!granted) {
-                Alert.alert('Permission Denied', 'Microphone permission is required for voice interaction');
-                return;
-            }
-        }
-
-        dispatch(setRecording(true));
-        setTranscribedText('');
-
-        await voiceService.startRecording(
-            (results) => {
-                if (results && results.length > 0) {
-                    const text = results[0];
-                    setTranscribedText(text);
-
-                    // Auto-stop after 2 seconds of silence
-                    if (silenceTimerRef.current) {
-                        clearTimeout(silenceTimerRef.current);
-                    }
-                    silenceTimerRef.current = setTimeout(() => {
-                        handleStopVoiceRecording();
-                    }, 2000);
+        try {
+            if (!permissionsGranted.microphone) {
+                const granted = await voiceService.requestMicrophonePermission();
+                dispatch(setPermissions({ microphone: granted }));
+                if (!granted) {
+                    Alert.alert('Permission Denied', 'Microphone permission is required');
+                    return;
                 }
-            },
-            (error) => {
-                console.error('Voice error:', error);
-                dispatch(setRecording(false));
-                Alert.alert('Voice Error', 'Failed to transcribe audio');
             }
-        );
+
+            dispatch(setRecording(true));
+            setTranscribedText('');
+
+            await voiceService.startRecording(
+                (results) => {
+                    if (results && results.length > 0) {
+                        const text = results[0];
+                        setTranscribedText(text);
+
+                        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                        silenceTimerRef.current = setTimeout(() => {
+                            handleStopVoiceRecording();
+                        }, 2000);
+                    }
+                },
+                (error) => {
+                    console.error('Voice error detail:', error);
+                    dispatch(setRecording(false));
+                    // Don't alert if it's just a cancel or no match
+                    if (error.error?.code !== '7' && error.error?.code !== '5') {
+                        Alert.alert('Voice Error', `Failed to listen: ${error.message || 'Unknown error'}`);
+                    }
+                }
+            );
+        } catch (e: any) {
+            console.error('Start recording warning:', e);
+            Alert.alert('Error', e.message);
+        }
     };
 
     const handleStopVoiceRecording = async () => {
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-        }
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
         await voiceService.stopRecording();
         dispatch(setRecording(false));
 
         if (transcribedText.trim()) {
-            // Send transcribed text to Calos
             await sendMessage(transcribedText, true);
         }
     };
@@ -147,7 +149,6 @@ const CalosScreen = () => {
 
         dispatch(setSending(true));
 
-        // Add user message
         const userMessage: Message = {
             id: Date.now().toString(),
             type: 'user',
@@ -157,13 +158,11 @@ const CalosScreen = () => {
         dispatch(addMessage(userMessage));
 
         try {
-            // Send to Calos
             const response = await calosService.chat({
                 message: text,
                 sessionId: sessionId || undefined,
             });
 
-            // Add assistant message
             const assistantMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 type: 'assistant',
@@ -173,28 +172,30 @@ const CalosScreen = () => {
                 actionResult: response.actionResult,
             };
 
-            // If voice input, get TTS response
             if (isVoice) {
-                const ttsResponse = await calosService.textToSpeech({
-                    text: response.response,
-                });
-                assistantMessage.audioUrl = ttsResponse.audioUrl;
-
-                // Play audio
-                playAudio(ttsResponse.audioUrl);
+                try {
+                    const ttsResponse = await calosService.textToSpeech({
+                        text: response.response,
+                    });
+                    assistantMessage.audioUrl = ttsResponse.audioUrl;
+                    playAudio(ttsResponse.audioUrl);
+                } catch (e) {
+                    console.warn('TTS failed but chat worked:', e);
+                }
             }
 
             dispatch(addMessage(assistantMessage));
             setInputText('');
             setTranscribedText('');
 
-            // Scroll to bottom
             setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
             }, 100);
-        } catch (error) {
-            console.error('Error sending message:', error);
-            Alert.alert('Error', 'Failed to send message');
+
+        } catch (error: any) {
+            console.error('Send message error:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to connect';
+            Alert.alert('Error', `Failed to send: ${errorMessage}`);
         } finally {
             dispatch(setSending(false));
         }
@@ -202,54 +203,55 @@ const CalosScreen = () => {
 
     const playAudio = async (audioUrl: string) => {
         dispatch(setPlaying(true));
-
         await voiceService.playAudio(
             audioUrl,
-            () => {
-                dispatch(setPlaying(false));
-            },
+            () => dispatch(setPlaying(false)),
             (error) => {
-                console.error('Audio playback error:', error);
+                console.error('Playback error:', error);
                 dispatch(setPlaying(false));
             }
         );
     };
 
-    const renderMessage = ({ item }: { item: Message }) => (
-        <View
-            style={[
+    const renderMessage = ({ item }: { item: Message }) => {
+        const isUser = item.type === 'user';
+        return (
+            <View style={[
                 styles.messageContainer,
-                item.type === 'user' ? styles.userMessage : styles.assistantMessage,
-            ]}
-        >
-            <GlassCard
-                style={StyleSheet.flatten([
-                    styles.messageBubble,
-                    item.type === 'user' ? styles.userBubble : undefined,
-                ])}
-            >
-                <Text style={styles.messageText}>{item.content}</Text>
-                {item.audioUrl && (
-                    <TouchableOpacity
-                        style={styles.audioButton}
-                        onPress={() => playAudio(item.audioUrl!)}
-                        disabled={isPlaying}
-                    >
-                        <Text style={styles.audioButtonText}>
-                            {isPlaying ? '⏸ Playing...' : '🔊 Listen'}
-                        </Text>
-                    </TouchableOpacity>
-                )}
-                {item.actionResult && (
-                    <View style={styles.actionResultContainer}>
-                        <Text style={styles.actionResultText}>
-                            ✅ Action completed
-                        </Text>
-                    </View>
-                )}
-            </GlassCard>
-        </View>
-    );
+                isUser ? styles.userMessage : styles.assistantMessage,
+            ]}>
+                <GlassCard
+                    style={StyleSheet.flatten([
+                        styles.messageBubble,
+                        isUser ? styles.userBubble : styles.assistantBubble,
+                    ])}
+                    intensity={isUser ? 'light' : 'medium'}
+                >
+                    <Text style={[
+                        styles.messageText,
+                        isUser ? styles.userMessageText : styles.assistantMessageText
+                    ]}>{item.content}</Text>
+
+                    {item.audioUrl && (
+                        <TouchableOpacity
+                            style={styles.audioButton}
+                            onPress={() => playAudio(item.audioUrl!)}
+                            disabled={isPlaying}
+                        >
+                            <Text style={styles.audioButtonText}>
+                                {isPlaying ? '⏸ Playing...' : '🔊 Listen'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    {item.actionResult && (
+                        <View style={styles.actionResultContainer}>
+                            <Text style={styles.actionResultText}>✅ Done</Text>
+                        </View>
+                    )}
+                </GlassCard>
+            </View>
+        );
+    };
 
     return (
         <LinearGradient
@@ -258,16 +260,13 @@ const CalosScreen = () => {
         >
             <SafeAreaView style={styles.safeArea}>
                 {!isConnected && (
-                    <GlassCard style={styles.offlineBanner}>
-                        <Text style={styles.offlineText}>
-                            ⚠️ Calos needs internet connection
-                        </Text>
-                    </GlassCard>
+                    <View style={styles.offlineBanner}>
+                        <Text style={styles.offlineText}>⚠️ Offline Mode</Text>
+                    </View>
                 )}
 
                 <View style={styles.header}>
                     <Text style={styles.title}>Calos AI</Text>
-                    <Text style={styles.subtitle}>Your Day Tracker Assistant</Text>
                 </View>
 
                 <FlatList
@@ -279,60 +278,62 @@ const CalosScreen = () => {
                     showsVerticalScrollIndicator={false}
                 />
 
-                {isRecording && (
-                    <View style={styles.recordingContainer}>
-                        <VoiceWaveform isActive={isRecording} />
-                        <Text style={styles.transcribedText}>
-                            {transcribedText || 'Listening...'}
-                        </Text>
-                    </View>
-                )}
-
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.inputContainer}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                    style={styles.keyboardAvoid}
                 >
-                    <GlassCard style={styles.inputCard}>
-                        <TextInput
-                            style={styles.textInput}
-                            value={inputText}
-                            onChangeText={setInputText}
-                            placeholder="Type a message..."
-                            placeholderTextColor={theme.colors.gray500}
-                            multiline
-                            editable={!isSending && isConnected}
-                        />
-                        <View style={styles.buttonRow}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.voiceButton,
-                                    isRecording && styles.voiceButtonActive,
-                                    !isConnected && styles.buttonDisabled,
-                                ]}
-                                onPress={isRecording ? handleStopVoiceRecording : handleStartVoiceRecording}
-                                disabled={!isConnected || isSending}
-                            >
-                                <Text style={styles.voiceButtonText}>
-                                    {isRecording ? '⏹' : '🎤'}
+                    <View style={styles.inputWrapper}>
+                        {isRecording && (
+                            <View style={styles.recordingFeedback}>
+                                <VoiceWaveform isActive={isRecording} />
+                                <Text style={styles.transcribedText}>
+                                    {transcribedText || 'Listening...'}
                                 </Text>
-                            </TouchableOpacity>
+                            </View>
+                        )}
 
-                            <TouchableOpacity
-                                style={[
-                                    styles.sendButton,
-                                    !inputText.trim() && styles.buttonDisabled,
-                                ]}
-                                onPress={() => sendMessage(inputText, false)}
-                                disabled={!inputText.trim() || isSending || !isConnected}
-                            >
-                                {isSending ? (
-                                    <ActivityIndicator color={theme.colors.white} size="small" />
-                                ) : (
-                                    <Text style={styles.sendButtonText}>Send</Text>
+                        <GlassCard style={styles.inputCard} intensity="heavy">
+                            <TextInput
+                                style={styles.textInput}
+                                value={inputText}
+                                onChangeText={setInputText}
+                                placeholder="Ask Calos..."
+                                placeholderTextColor={theme.colors.gray500}
+                                multiline
+                                editable={!isSending && isConnected}
+                            />
+                            <View style={styles.controlsRow}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.iconButton,
+                                        isRecording && styles.recordingActive,
+                                        (!isConnected || isSending) && styles.disabled
+                                    ]}
+                                    onPress={isRecording ? handleStopVoiceRecording : handleStartVoiceRecording}
+                                    disabled={!isConnected || isSending}
+                                >
+                                    <Text style={styles.iconText}>
+                                        {isRecording ? '⏹' : '🎤'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {inputText.trim().length > 0 && (
+                                    <TouchableOpacity
+                                        style={[styles.sendButton, isSending && styles.disabled]}
+                                        onPress={() => sendMessage(inputText, false)}
+                                        disabled={isSending || !isConnected}
+                                    >
+                                        {isSending ? (
+                                            <ActivityIndicator color={theme.colors.black} size="small" />
+                                        ) : (
+                                            <Text style={styles.sendButtonText}>→</Text>
+                                        )}
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
-                        </View>
-                    </GlassCard>
+                            </View>
+                        </GlassCard>
+                    </View>
                 </KeyboardAvoidingView>
             </SafeAreaView>
         </LinearGradient>
@@ -342,127 +343,126 @@ const CalosScreen = () => {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     safeArea: { flex: 1 },
-    offlineBanner: {
-        margin: theme.spacing.md,
-        padding: theme.spacing.sm,
-        backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    },
-    offlineText: {
-        color: theme.colors.white,
-        textAlign: 'center',
-        fontSize: theme.typography.fontSize.sm,
-    },
     header: {
-        padding: theme.spacing.lg,
+        paddingVertical: 12,
         alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
     },
     title: {
-        fontSize: theme.typography.fontSize.xxl,
-        fontWeight: theme.typography.fontWeight.bold as any,
+        fontSize: 20,
+        fontWeight: 'bold',
         color: theme.colors.white,
     },
-    subtitle: {
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.gray400,
+    offlineBanner: {
+        backgroundColor: '#FF4444',
+        padding: 4,
+        alignItems: 'center',
     },
+    offlineText: { color: 'white', fontSize: 12 },
     messagesList: {
-        padding: theme.spacing.md,
+        paddingHorizontal: 16,
+        paddingBottom: 20,
     },
     messageContainer: {
-        marginBottom: theme.spacing.md,
+        marginVertical: 4,
+        width: '100%',
     },
-    userMessage: {
-        alignItems: 'flex-end',
-    },
-    assistantMessage: {
-        alignItems: 'flex-start',
-    },
+    userMessage: { alignItems: 'flex-end' },
+    assistantMessage: { alignItems: 'flex-start' },
     messageBubble: {
-        maxWidth: '80%',
-        padding: theme.spacing.md,
+        padding: 12,
+        borderRadius: 16,
+        maxWidth: '85%',
     },
     userBubble: {
         backgroundColor: theme.colors.white,
+        borderBottomRightRadius: 4,
     },
-    messageText: {
-        fontSize: theme.typography.fontSize.md,
-        color: theme.colors.white,
+    assistantBubble: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderBottomLeftRadius: 4,
     },
-    audioButton: {
-        marginTop: theme.spacing.sm,
-        padding: theme.spacing.xs,
-        backgroundColor: theme.colors.glassLight,
-        borderRadius: theme.borderRadius.sm,
+    messageText: { fontSize: 16, lineHeight: 22 },
+    userMessageText: { color: theme.colors.black },
+    assistantMessageText: { color: theme.colors.white },
+
+    keyboardAvoid: {
+        width: '100%',
     },
-    audioButtonText: {
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.white,
+    inputWrapper: {
+        padding: 16,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 16,
     },
-    actionResultContainer: {
-        marginTop: theme.spacing.xs,
-        padding: theme.spacing.xs,
-        backgroundColor: theme.colors.glassLight,
-        borderRadius: theme.borderRadius.sm,
-    },
-    actionResultText: {
-        fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.gray300,
-    },
-    recordingContainer: {
-        padding: theme.spacing.lg,
+    recordingFeedback: {
         alignItems: 'center',
+        marginBottom: 10,
     },
     transcribedText: {
-        fontSize: theme.typography.fontSize.md,
-        color: theme.colors.white,
-        marginTop: theme.spacing.sm,
-        textAlign: 'center',
-    },
-    inputContainer: {
-        padding: theme.spacing.md,
+        color: theme.colors.gray300,
+        marginTop: 8,
+        fontStyle: 'italic',
     },
     inputCard: {
-        padding: theme.spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderRadius: 24,
+        paddingHorizontal: 16,
     },
     textInput: {
-        fontSize: theme.typography.fontSize.md,
+        flex: 1,
         color: theme.colors.white,
+        fontSize: 16,
         maxHeight: 100,
-        marginBottom: theme.spacing.sm,
+        paddingVertical: 8,
     },
-    buttonRow: {
+    controlsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 8,
+    },
+    iconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    voiceButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+    recordingActive: {
+        backgroundColor: '#FF4444',
+    },
+    iconText: { fontSize: 20 },
+    sendButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: theme.colors.white,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    voiceButtonActive: {
-        backgroundColor: '#FF4444',
-    },
-    voiceButtonText: {
-        fontSize: 24,
-    },
-    sendButton: {
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.md,
-        backgroundColor: theme.colors.white,
-        borderRadius: theme.borderRadius.md,
-    },
-    buttonDisabled: {
-        opacity: 0.5,
-    },
     sendButtonText: {
-        fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.semibold as any,
+        fontSize: 20,
+        fontWeight: 'bold',
         color: theme.colors.black,
     },
+    disabled: { opacity: 0.5 },
+
+    audioButton: {
+        marginTop: 8,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        padding: 8,
+        borderRadius: 8,
+    },
+    audioButtonText: { color: 'white', fontSize: 12 },
+    actionResultContainer: {
+        marginTop: 4,
+        padding: 4,
+        backgroundColor: 'rgba(0,255,0,0.1)',
+        borderRadius: 4,
+    },
+    actionResultText: { color: '#4ADE80', fontSize: 10 },
 });
 
 export default CalosScreen;
